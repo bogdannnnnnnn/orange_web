@@ -1,0 +1,15 @@
+{
+  "name": "my-weather-project",
+  "version": "1.0.0",
+  "description": "Сайт для передачи данных с датчиков погоды",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

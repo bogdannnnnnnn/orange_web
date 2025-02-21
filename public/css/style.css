@@ -1,0 +1,151 @@
+/* Общие стили и подключение шрифта */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Roboto', sans-serif;
+  background: #f0f2f5;
+}
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Шапка сайта */
+header {
+  background: linear-gradient(90deg, #0052D4, #4364F7, #6FB1FC);
+  color: #fff;
+  padding: 1.5rem 1rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+header h1 {
+  margin: 0;
+  text-align: center;
+  font-weight: 500;
+}
+nav ul {
+  list-style: none;
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0 0 0;
+  padding: 0;
+}
+nav ul li {
+  margin: 0 1rem;
+}
+nav ul li a {
+  color: #fff;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: background 0.3s;
+}
+nav ul li a:hover,
+nav ul li a.active {
+  background: rgba(255,255,255,0.2);
+}
+
+/* Основной контент */
+main {
+  flex: 1;
+  padding: 2rem 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Стили для карты */
+.map-wrapper {
+  overflow-x: auto;
+}
+#map {
+  width: 250%; /* увеличенная ширина в 2.5 раза */
+  height: 600px; /* увеличенная высота */
+  margin-bottom: 1.5rem;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+#filters {
+  text-align: center;
+  margin-top: 1rem;
+}
+#filters label {
+  margin-right: 1rem;
+  font-weight: 500;
+}
+
+/* Стили для раздела таблиц */
+#table-section {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Субвкладки таблиц */
+#table-tabs ul {
+  list-style: none;
+  display: flex;
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 1rem;
+  padding: 0;
+}
+#table-tabs ul li {
+  margin-right: 1rem;
+}
+#table-tabs ul li a {
+  text-decoration: none;
+  color: #333;
+  padding: 0.5rem 1rem;
+  display: block;
+  border: 1px solid transparent;
+  border-bottom: none;
+  transition: background 0.3s, border-color 0.3s;
+}
+#table-tabs ul li a.active {
+  border: 1px solid #ccc;
+  border-bottom: 1px solid #fff;
+  background: #f4f4f4;
+  border-radius: 4px 4px 0 0;
+}
+
+/* Стили для таблиц в субвкладках */
+.table-tab {
+  margin-top: 1rem;
+}
+.table-tab button.download-btn {
+  background: #28a745;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  transition: background 0.3s;
+}
+.table-tab button.download-btn:hover {
+  background: #218838;
+}
+.table-tab table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+.table-tab th, .table-tab td {
+  border: 1px solid #ddd;
+  padding: 0.75rem;
+  text-align: center;
+}
+.table-tab th {
+  background: #f4f4f4;
+  font-weight: 500;
+}
+
+/* Футер, закреплённый снизу */
+footer {
+  background: #333;
+  color: #fff;
+  text-align: center;
+  padding: 1rem;
+}

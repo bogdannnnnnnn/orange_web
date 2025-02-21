@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Система мониторинга датчиков погоды</title>
+  <!-- Подключение Яндекс.Карт API -->
+  <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <h1>Система мониторинга датчиков погоды</h1>
+    <nav>
+      <ul>
+        <li><a href="#" id="tab-map" class="active">Карта</a></li>
+        <li><a href="#" id="tab-table">Таблица данных</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main>
+    <!-- Раздел для карты -->
+    <section id="map-section">
+      <!-- Обёртка с горизонтальной прокруткой -->
+      <div class="map-wrapper">
+        <div id="map"></div>
+      </div>
+      <div id="filters">
+        <h3>Фильтры</h3>
+        <label><input type="checkbox" class="filter" value="airQuality" checked> Качество воздуха</label>
+        <label><input type="checkbox" class="filter" value="rain" checked> Дождь</label>
+        <label><input type="checkbox" class="filter" value="dust" checked> Количество пыли</label>
+      </div>
+    </section>
+    <!-- Раздел для таблиц с данными -->
+    <section id="table-section" style="display:none;">
+      <div id="table-tabs">
+        <ul>
+          <li><a href="#" id="tab-airQuality" class="active" data-type="airQuality">Качество воздуха</a></li>
+          <li><a href="#" id="tab-rain" data-type="rain">Дождь</a></li>
+          <li><a href="#" id="tab-dust" data-type="dust">Количество пыли</a></li>
+        </ul>
+      </div>
+      <div id="tables-container">
+        <!-- Таблица для датчиков качества воздуха -->
+        <div class="table-tab" id="content-airQuality">
+          <button class="download-btn" data-type="airQuality">Скачать CSV</button>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Название</th>
+                <th>Широта</th>
+                <th>Долгота</th>
+                <th>Данные</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Данные для качества воздуха -->
+            </tbody>
+          </table>
+        </div>
+        <!-- Таблица для датчиков дождя -->
+        <div class="table-tab" id="content-rain" style="display:none;">
+          <button class="download-btn" data-type="rain">Скачать CSV</button>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Название</th>
+                <th>Широта</th>
+                <th>Долгота</th>
+                <th>Данные</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Данные для дождя -->
+            </tbody>
+          </table>
+        </div>
+        <!-- Таблица для датчиков количества пыли -->
+        <div class="table-tab" id="content-dust" style="display:none;">
+          <button class="download-btn" data-type="dust">Скачать CSV</button>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Название</th>
+                <th>Широта</th>
+                <th>Долгота</th>
+                <th>Данные</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Данные для количества пыли -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <p>&copy; 2025 Система мониторинга датчиков погоды</p>
+  </footer>
+  <!-- Custom JS -->
+  <script src="js/app.js"></script>
+</body>
+</html>
