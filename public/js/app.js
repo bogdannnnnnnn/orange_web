@@ -1,19 +1,22 @@
 document.addEventListener("DOMContentLoaded", () => {
     let sensors = [];
+    let gateways = [];
     let myMap; // Объект Яндекс.Карты
+    const fetchInterval = 2000;
   
     // Инициализация Яндекс.Карт
     ymaps.ready(initMap);
   
     function initMap() {
       myMap = new ymaps.Map("map", {
-        center: [55.7558, 37.6176],
-        zoom: 12,
+        center: [55.74624677351348, 37.6189327222528],
+        zoom: 15,
         controls: []
       });
   
       // После инициализации карты загружаем данные датчиков
       fetchSensors();
+      setInterval(fetchSensors, fetchInterval); // Периодически запрашиваем данные
     }
   
     // Получение данных с API
@@ -21,7 +24,12 @@ document.addEventListener("DOMContentLoaded", () => {
       fetch('/api/sensors')
         .then(response => response.json())
         .then(data => {
-          sensors = data;
+          sensors = data.sensors || [];
+          gateways = data.rxInfo ? data.rxInfo.map(info => ({
+            latitude: info.location.latitude,
+            longitude: info.location.longitude,
+            name: info.gatewayId
+          })) : [];
           addPlacemarks();
           populateTables();
         })
@@ -38,10 +46,21 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         let placemark = new ymaps.Placemark([sensor.lat, sensor.lng], {
           hintContent: sensor.name,
-          balloonContent: `<strong>${sensor.name}</strong><br>Тип: ${getSensorTypeName(sensor.type)}<br>Данные: ${sensor.data.value} ${sensor.data.unit}`
+          balloonContent: `<strong>${sensor.name}</strong><br>ID: ${sensor.id}<br>Тип: ${getSensorTypeName(sensor.type)}<br>Данные: ${sensor.data.value} ${sensor.data.unit}`
         }, {
           preset: 'islands#icon',
           iconColor: '#0095b6'
+        });
+        myMap.geoObjects.add(placemark);
+      });
+
+      gateways.forEach(gateway => {
+        let placemark = new ymaps.Placemark([gateway.latitude, gateway.longitude], {
+          hintContent: `Шлюз: ${gateway.name}`,
+          balloonContent: `<strong>Шлюз</strong><br>ID: ${gateway.name}<br>`
+        }, {
+          preset: 'islands#icon',
+          iconColor: '#ff0000'
         });
         myMap.geoObjects.add(placemark);
       });
@@ -165,5 +184,4 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById('tab-table').classList.add('active');
       document.getElementById('tab-map').classList.remove('active');
     });
-  });
-  
+});
