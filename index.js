@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const { Pool } = require('pg');
 const app = express();
 
 app.use(express.json());
@@ -7,6 +8,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get("/", (req, res) => {
     res.sendFile(path.resolve('./public/index.html'));
+});
+
+const pool = new Pool({
+    user: 'app_user',
+    host: '172.18.10.144',
+    database: 'sensor_db',
+    password: 'user',
+    port: 5432,
 });
 
 let sensors = {};
@@ -28,7 +37,7 @@ function getUnitByType(type) {
     }
 }
 
-app.post("/data", (req, res) => {
+app.post("/data", async (req, res) => {
     const sensorData = req.body;
     if (sensorData.data) {
         sensorData.data = Buffer.from(sensorData.data, 'base64').toString('utf-8');
@@ -38,48 +47,88 @@ app.post("/data", (req, res) => {
         sensors[sensorId] = {
             deviceInfo: sensorData.deviceInfo,
             history: [],
-            lat: gatewayLocation && !isNaN(gatewayLocation.lat) ? getRandomCoordinate(gatewayLocation.lat, 0.01) : null,
-            lng: gatewayLocation && !isNaN(gatewayLocation.lng) ? getRandomCoordinate(gatewayLocation.lng, 0.01) : null
         };
     }
-    sensors[sensorId].history.push({
+    const sensorEntry = {
         time: sensorData.time,
         data: sensorData.data
-    });
+    };
+    sensors[sensorId].history.push(sensorEntry);
     rxInfo = sensorData.rxInfo || [];
     if (rxInfo.length > 0) {
         gatewayLocation = {
             lat: rxInfo[0].location.latitude,
             lng: rxInfo[0].location.longitude
         };
+        if (!sensors[sensorId].lat || !sensors[sensorId].lng) {
+            sensors[sensorId].lat = getRandomCoordinate(gatewayLocation.lat, 0.01);
+            sensors[sensorId].lng = getRandomCoordinate(gatewayLocation.lng, 0.01);
+        }
     }
     console.log('Данные датчиков обновлены:', sensors);
-    res.sendStatus(200);
+
+    try {
+        await pool.query(`
+            INSERT INTO sensors (id, type, name, lat, lng, data, unit)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (id) DO UPDATE SET
+                type = EXCLUDED.type,
+                name = EXCLUDED.name,
+                lat = EXCLUDED.lat,
+                lng = EXCLUDED.lng,
+                data = EXCLUDED.data,
+                unit = EXCLUDED.unit
+        `, [
+            sensorId,
+            sensorData.deviceInfo.tags.type,
+            sensorData.deviceInfo.deviceName,
+            sensors[sensorId].lat,
+            sensors[sensorId].lng,
+            sensorData.data,
+            getUnitByType(sensorData.deviceInfo.tags.type)
+        ]);
+
+        await pool.query(`
+            INSERT INTO sensor_history (sensor_id, time, data)
+            VALUES ($1, $2, $3)
+        `, [
+            sensorId,
+            sensorEntry.time,
+            sensorEntry.data
+        ]);
+
+        res.sendStatus(200);
+    } catch (error) {
+        console.error('Ошибка сохранения данных в базу данных:', error);
+        res.sendStatus(500);
+    }
 });
 
-app.get("/api/sensors", (req, res) => {
-    const sen = Object.keys(sensors).map(sensorId => {
-        const sensor = sensors[sensorId];
-        const latestData = sensor.history[sensor.history.length - 1];
-        const unit = getUnitByType(sensor.deviceInfo.tags.type);
-        let lat = sensor.lat;
-        let lng = sensor.lng;
-        if (lat === null || lng === null) {
-            lat = gatewayLocation && !isNaN(gatewayLocation.lat) ? getRandomCoordinate(gatewayLocation.lat, 0.01) : 'N/A';
-            lng = gatewayLocation && !isNaN(gatewayLocation.lng) ? getRandomCoordinate(gatewayLocation.lng, 0.01) : 'N/A';
-            sensor.lat = lat;
-            sensor.lng = lng;
-        }
-        return {
-            id: sensor.deviceInfo.devEui,
-            type: sensor.deviceInfo.tags.type,
-            name: sensor.deviceInfo.deviceName,
-            lat: lat,
-            lng: lng,
-            data: { value: latestData.data, unit: unit }
-        };
-    });
-    res.json({ sensors: sen, rxInfo: rxInfo });
+app.get("/api/sensors", async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM sensors');
+        const historyResult = await pool.query('SELECT * FROM sensor_history');
+        const historyMap = historyResult.rows.reduce((acc, row) => {
+            if (!acc[row.sensor_id]) {
+                acc[row.sensor_id] = [];
+            }
+            acc[row.sensor_id].push({ time: row.time, data: row.data });
+            return acc;
+        }, {});
+        const sen = result.rows.map(row => ({
+            id: row.id,
+            type: row.type,
+            name: row.name,
+            lat: row.lat,
+            lng: row.lng,
+            data: { value: row.data, unit: row.unit },
+            history: historyMap[row.id] || []
+        }));
+        res.json({ sensors: sen, rxInfo: rxInfo });
+    } catch (error) {
+        console.error('Ошибка получения данных из базы данных:', error);
+        res.sendStatus(500);
+    }
 });
 
 const PORT = 4000;
