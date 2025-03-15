@@ -8,107 +8,144 @@
   <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap" rel="stylesheet">
-  <!-- Custom CSS -->
+  <!-- Подключение CSS -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header>
-    <h1>Система мониторинга датчиков погоды</h1>
-    <nav>
-      <ul>
-        <li><a href="#" id="tab-map" class="active">Карта</a></li>
-        <li><a href="#" id="tab-table">Таблица данных</a></li>
-      </ul>
-    </nav>
-  </header>
-  <main>
-    <!-- Раздел для карты -->
-    <section id="map-section">
-      <!-- Обёртка с горизонтальной прокруткой -->
-      <div class="map-wrapper">
-        <div id="map"></div>
+  <!-- Страница входа -->
+  <section id="login-section">
+    <div class="login-container">
+      <h1 class="project-title">Orangerial</h1>
+      <p>Введите код для входа в систему:</p>
+      <div class="password-wrapper">
+        <input type="password" id="login-code" placeholder="Введите код">
+        <button id="toggle-code-visibility" type="button">Показать</button>
       </div>
-      <div id="filters">
-        <h3>Фильтры</h3>
-        <label><input type="checkbox" class="filter" value="airQuality" checked> Качество воздуха</label>
-        <label><input type="checkbox" class="filter" value="rain" checked> Дождь</label>
-        <label><input type="checkbox" class="filter" value="dust" checked> Количество пыли</label>
-      </div>
-    </section>
-    <!-- Раздел для таблиц с данными -->
-    <section id="table-section" style="display:none;">
-      <div id="table-tabs">
+      <button id="login-btn">Войти</button>
+      <p id="login-error" class="error"></p>
+    </div>
+  </section>
+
+  <!-- Основной интерфейс (скрыт до авторизации) -->
+  <div id="main-ui" style="display:none;">
+    <header>
+      <h1>Система мониторинга датчиков погоды</h1>
+      <!-- Кнопка переключения темы -->
+      <button id="dark-mode-toggle" class="dark-mode-toggle">Dark Mode</button>
+      <nav>
         <ul>
-          <li><a href="#" id="tab-airQuality" class="active" data-type="airQuality">Качество воздуха</a></li>
-          <li><a href="#" id="tab-rain" data-type="rain">Дождь</a></li>
-          <li><a href="#" id="tab-dust" data-type="dust">Количество пыли</a></li>
+          <li><a href="#" id="tab-map" class="active">Карта</a></li>
+          <li><a href="#" id="tab-table">Таблица данных</a></li>
+          <li><a href="#" id="tab-add-sensor">Добавить датчик</a></li>
         </ul>
-      </div>
-      <div id="tables-container">
-        <!-- Таблица для датчиков качества воздуха -->
-        <div class="table-tab" id="content-airQuality">
-          <button class="download-btn" data-type="airQuality">Скачать CSV</button>
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Название</th>
-                <th>Широта</th>
-                <th>Долгота</th>
-                <th>Время</th>
-                <th>Данные</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- История данных для качества воздуха -->
-            </tbody>
-          </table>
+      </nav>
+    </header>
+    <main>
+      <!-- Раздел для карты -->
+      <section id="map-section">
+        <div class="map-wrapper">
+          <div id="map"></div>
         </div>
-        <!-- Таблица для датчиков дождя -->
-        <div class="table-tab" id="content-rain" style="display:none;">
-          <button class="download-btn" data-type="rain">Скачать CSV</button>
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Название</th>
-                <th>Широта</th>
-                <th>Долгота</th>
-                <th>Время</th>
-                <th>Данные</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- История данных для дождя -->
-            </tbody>
-          </table>
+        <div id="filters">
+          <h3>Фильтры</h3>
+          <label><input type="checkbox" class="filter" value="airQuality" checked> Качество воздуха</label>
+          <label><input type="checkbox" class="filter" value="rain" checked> Дождь</label>
+          <label><input type="checkbox" class="filter" value="dust" checked> Количество пыли</label>
         </div>
-        <!-- Таблица для датчиков количества пыли -->
-        <div class="table-tab" id="content-dust" style="display:none;">
-          <button class="download-btn" data-type="dust">Скачать CSV</button>
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Название</th>
-                <th>Широта</th>
-                <th>Долгота</th>
-                <th>Время</th>
-                <th>Данные</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- История данных для количества пыли -->
-            </tbody>
-          </table>
+      </section>
+      <!-- Раздел для таблиц с данными -->
+      <section id="table-section" style="display:none;">
+        <div id="table-tabs">
+          <ul>
+            <li><a href="#" id="tab-airQuality" class="active" data-type="airQuality">Качество воздуха</a></li>
+            <li><a href="#" id="tab-rain" data-type="rain">Дождь</a></li>
+            <li><a href="#" id="tab-dust" data-type="dust">Количество пыли</a></li>
+          </ul>
         </div>
-      </div>
-    </section>
-  </main>
-  <footer>
-    <p>&copy; 2025 Система мониторинга датчиков погоды</p>
-  </footer>
-  <!-- Custom JS -->
+        <div id="tables-container">
+          <!-- Таблица для датчиков качества воздуха -->
+          <div class="table-tab" id="content-airQuality">
+            <button class="download-btn" data-type="airQuality">Скачать CSV</button>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Название</th>
+                  <th>Широта</th>
+                  <th>Долгота</th>
+                  <th>Время</th>
+                  <th>Данные</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Данные для качества воздуха -->
+              </tbody>
+            </table>
+          </div>
+          <!-- Таблица для датчиков дождя -->
+          <div class="table-tab" id="content-rain" style="display:none;">
+            <button class="download-btn" data-type="rain">Скачать CSV</button>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Название</th>
+                  <th>Широта</th>
+                  <th>Долгота</th>
+                  <th>Время</th>
+                  <th>Данные</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Данные для дождя -->
+              </tbody>
+            </table>
+          </div>
+          <!-- Таблица для датчиков количества пыли -->
+          <div class="table-tab" id="content-dust" style="display:none;">
+            <button class="download-btn" data-type="dust">Скачать CSV</button>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Название</th>
+                  <th>Широта</th>
+                  <th>Долгота</th>
+                  <th>Время</th>
+                  <th>Данные</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Данные для количества пыли -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <!-- Раздел для добавления датчика -->
+      <section id="add-sensor-section" style="display:none;">
+        <h2>Добавить датчик</h2>
+        <form id="new-sensor-form">
+          <input type="text" id="sensor-id" placeholder="MAC-устройства / ID" required>
+          <select id="sensor-type" required>
+            <option value="">Выберите тип датчика</option>
+            <option value="airQuality">Качество воздуха</option>
+            <option value="rain">Дождь</option>
+            <option value="dust">Количество пыли</option>
+          </select>
+          <input type="number" id="sensor-lat" placeholder="Широта" step="any" required>
+          <input type="number" id="sensor-lng" placeholder="Долгота" step="any" required>
+          <input type="text" id="sensor-data-type" placeholder="Тип предоставляемых данных" required>
+          <button type="submit">Добавить датчик</button>
+        </form>
+        <p id="new-sensor-error" class="error"></p>
+      </section>
+    </main>
+    <footer>
+      <p>&copy; 2025 Система мониторинга датчиков погоды</p>
+    </footer>
+  </div>
+  <!-- Подключение JavaScript -->
   <script src="js/app.js"></script>
 </body>
 </html>

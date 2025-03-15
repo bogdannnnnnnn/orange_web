@@ -1,20 +1,22 @@
-/* Общие стили и подключение шрифта */
+/* Основной фон страницы (светлый режим): градиент от rgb(145,157,169) к более светлому */
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
   font-family: 'Roboto', sans-serif;
-  background: #f0f2f5;
+  background: linear-gradient(45deg, rgb(145,157,169), rgb(225,235,245));
 }
+
 body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
-/* Шапка сайта */
+/* Верхняя часть сайта */
 header {
-  background: linear-gradient(90deg, #0052D4, #4364F7, #6FB1FC);
+  position: relative;
+  background: rgb(20,34,71);
   color: #fff;
   padding: 1.5rem 1rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -46,6 +48,23 @@ nav ul li a.active {
   background: rgba(255,255,255,0.2);
 }
 
+/* Кнопка переключения темы */
+.dark-mode-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: 1px solid #fff;
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+.dark-mode-toggle:hover {
+  background: rgba(255,255,255,0.2);
+}
+
 /* Основной контент */
 main {
   flex: 1;
@@ -59,8 +78,8 @@ main {
   overflow-x: auto;
 }
 #map {
-  width: 250%; /* увеличенная ширина в 2.5 раза */
-  height: 600px; /* увеличенная высота */
+  width: 250%;
+  height: 600px;
   margin-bottom: 1.5rem;
   border: none;
   border-radius: 8px;
@@ -83,7 +102,7 @@ main {
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-/* Субвкладки таблиц */
+/* Стили для субвкладок таблиц */
 #table-tabs ul {
   list-style: none;
   display: flex;
@@ -142,10 +161,171 @@ main {
   font-weight: 500;
 }
 
-/* Футер, закреплённый снизу */
+/* Футер */
 footer {
   background: #333;
   color: #fff;
   text-align: center;
   padding: 1rem;
+}
+
+/* Стили для страницы входа */
+#login-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+.login-container {
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  text-align: center;
+  max-width: 320px;
+  width: 100%;
+}
+.login-container .project-title {
+  color: #FFA726;
+  font-size: 2.5em;
+  margin-bottom: 0.5em;
+}
+#login-section input {
+  padding: 10px;
+  margin: 10px 0;
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+#login-section button {
+  padding: 10px 20px;
+  width: 100%;
+  border: none;
+  border-radius: 4px;
+  background-color: #0052D4;
+  color: #fff;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+#login-section button:hover {
+  background-color: #4364F7;
+}
+.error {
+  color: red;
+}
+
+/* Стили для обертки поля пароля */
+.password-wrapper {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+.password-wrapper input {
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+}
+.password-wrapper button {
+  align-self: flex-end;
+  margin-top: 5px;
+  padding: 5px 10px;
+  font-size: 0.8em;
+  background: transparent;
+  border: 1px solid #0052D4;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #0052D4;
+}
+.password-wrapper button:hover {
+  background-color: #0052D4;
+  color: #fff;
+}
+
+/* Удаление спин-кнопок для input[type="number"] */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* Стилизация полей формы добавления датчика */
+#new-sensor-form input,
+#new-sensor-form select {
+  width: 100%;
+  padding: 10px;
+  margin: 8px 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 1em;
+  transition: border-color 0.3s;
+}
+#new-sensor-form input:focus,
+#new-sensor-form select:focus {
+  border-color: #0052D4;
+  outline: none;
+}
+#new-sensor-form button {
+  width: 100%;
+  padding: 10px;
+  background-color: #0052D4;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+#new-sensor-form button:hover {
+  background-color: #4364F7;
+}
+
+/* Dark mode стили */
+.dark-mode {
+  background: linear-gradient(45deg, #1c1c1c, #333333) !important;
+  color: #ddd;
+}
+.dark-mode header {
+  background: rgb(10,20,40) !important;
+}
+.dark-mode nav ul li a {
+  color: #ddd !important;
+}
+
+/* Стили для таблиц в ночном режиме */
+.dark-mode #table-section {
+  background: #2c2c2c;
+}
+.dark-mode .table-tab table {
+  background-color: #444;
+  color: #ddd;
+}
+.dark-mode .table-tab th {
+  background-color: #555;
+  color: #fff;
+}
+.dark-mode .table-tab td {
+  background-color: #444;
+  color: #ddd;
+}
+
+/* Новые стили для кнопок переключения таблиц в ночном режиме */
+.dark-mode #table-tabs ul li a {
+  color: #ddd;
+  background: #555;
+  border: 1px solid #666;
+}
+.dark-mode #table-tabs ul li a:hover {
+  background: #666;
+}
+.dark-mode #table-tabs ul li a.active {
+  color: #fff;
+  background: #777;
+  border: 1px solid #888;
+  border-bottom: 1px solid #2c2c2c;
 }
