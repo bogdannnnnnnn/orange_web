@@ -13,7 +13,7 @@
 </head>
 <body>
   <!-- Страница входа -->
-  <section id="login-section">
+  <section id="login-section" style="display: none;">
     <div class="login-container">
       <h1 class="project-title">Orangerial</h1>
       <p>Введите код для входа в систему:</p>
@@ -30,8 +30,11 @@
   <div id="main-ui" style="display:none;">
     <header>
       <h1>Система мониторинга датчиков погоды</h1>
-      <!-- Кнопка переключения темы -->
-      <button id="dark-mode-toggle" class="dark-mode-toggle">Dark Mode</button>
+      <!-- Кнопки в шапке -->
+      <div class="header-buttons">
+        <button id="dark-mode-toggle" class="dark-mode-toggle">Тёмная тема</button>
+        <button id="logout-btn" class="logout-btn">Выйти</button>
+      </div>
       <nav>
         <ul>
           <li><a href="#" id="tab-map" class="active">Карта</a></li>
@@ -126,7 +129,10 @@
       <section id="add-sensor-section" style="display:none;">
         <h2>Добавить датчик</h2>
         <form id="new-sensor-form">
-          <input type="text" id="sensor-id" placeholder="MAC-устройства / ID" required>
+          <select id="sensor-id" required>
+            <option value="">Выберите ID датчика</option>
+          </select>
+          <input type="text" id="sensor-name" placeholder="Название датчика" required>
           <select id="sensor-type" required>
             <option value="">Выберите тип датчика</option>
             <option value="airQuality">Качество воздуха</option>
@@ -135,8 +141,7 @@
           </select>
           <input type="number" id="sensor-lat" placeholder="Широта" step="any" required>
           <input type="number" id="sensor-lng" placeholder="Долгота" step="any" required>
-          <input type="text" id="sensor-data-type" placeholder="Тип предоставляемых данных" required>
-          <button type="submit">Добавить датчик</button>
+          <button type="submit">Обновить датчик</button>
         </form>
         <p id="new-sensor-error" class="error"></p>
       </section>

@@ -4,9 +4,8 @@
   "description": "Сайт для передачи данных с датчиков погоды",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node index.js",
-    "mqtt": "node mqttTester.js"
+    "server": "node index.js",
+    "mqtt": "node mqttSimulator.js"
   },
   "author": "",
   "license": "ISC",

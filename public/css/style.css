@@ -51,9 +51,7 @@ nav ul li a.active {
 
 /* Кнопка переключения темы */
 .dark-mode-toggle {
-  position: absolute;
-  top: 10px;
-  right: 10px;
+  position: static; /* Remove absolute positioning */
   background: transparent;
   border: 1px solid #fff;
   color: #fff;
@@ -64,6 +62,30 @@ nav ul li a.active {
 }
 .dark-mode-toggle:hover {
   background: rgba(255,255,255,0.2);
+}
+
+/* Header buttons container */
+.header-buttons {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+/* Logout button */
+.logout-btn {
+  background: #dc3545;
+  border: 1px solid #fff;
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.logout-btn:hover {
+  background: #bb2d3b;
 }
 
 /* Основной интерфейс */
@@ -141,7 +163,7 @@ main {
 
 /* Стили для таблиц в субвкладках */
 .table-tab {
-  margin-top: 1рем;
+  margin-top: 1rem;
 }
 .table-tab button.download-btn {
   background: #28a745;
@@ -346,4 +368,19 @@ input[type=number] {
   background: #777;
   border: 1px solid #888;
   border-bottom: 1px solid #2c2c2c;
+}
+
+/* Стили для различных типов датчиков */
+.registered-sensor {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.unregistered-sensor {
+  color: #dc3545;
+}
+
+/* Hide elements */
+[style*="display: none"] {
+    display: none !important;
 }
