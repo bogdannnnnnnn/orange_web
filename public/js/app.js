@@ -126,6 +126,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function formatDateTime(isoString) {
+    const date = new Date(isoString);
+    const options = {
+      year: 'numeric',
+      month: '2-digit',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZone: 'Europe/Moscow'
+    };
+    return new Intl.DateTimeFormat('ru-RU', options).format(date);
+  }
+
   function populateTables() {
     const tbodyAir = document.querySelector("#content-airQuality tbody");
     const tbodyRain = document.querySelector("#content-rain tbody");
@@ -135,27 +149,32 @@ document.addEventListener("DOMContentLoaded", () => {
     tbodyDust.innerHTML = "";
 
     sensors.forEach((sensor) => {
-      sensor.history.slice().reverse().forEach((entry) => {
-        let historyRow = `<tr>
+        sensor.history.slice().reverse().forEach((entry) => {
+            // Skip null values
+            if (entry.data === null || entry.data === undefined) {
+                return;
+            }
+            
+            let historyRow = `<tr>
                             <td>${sensor.id}</td>
                             <td>${sensor.name}</td>
                             <td>${sensor.lat}</td>
                             <td>${sensor.lng}</td>
-                            <td>${entry.time}</td>
+                            <td>${formatDateTime(entry.time)}</td>
                             <td>${entry.data} ${sensor.data.unit}</td>
                           </tr>`;
-        switch (sensor.type) {
-          case "airQuality":
-            tbodyAir.innerHTML += historyRow;
-            break;
-          case "rain":
-            tbodyRain.innerHTML += historyRow;
-            break;
-          case "dust":
-            tbodyDust.innerHTML += historyRow;
-            break;
-        }
-      });
+            switch (sensor.type) {
+                case "airQuality":
+                    tbodyAir.innerHTML += historyRow;
+                    break;
+                case "rain":
+                    tbodyRain.innerHTML += historyRow;
+                    break;
+                case "dust":
+                    tbodyDust.innerHTML += historyRow;
+                    break;
+            }
+        });
     });
   }
 

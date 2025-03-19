@@ -5,12 +5,14 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js"
+    "dev": "node index.js",
+    "mqtt": "node mqttTester.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "express": "^4.21.2",
+    "mqtt": "^5.10.4",
     "pg": "^8.14.0"
   }
 }

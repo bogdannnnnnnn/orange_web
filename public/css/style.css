@@ -2,7 +2,7 @@
 html, body {
   margin: 0;
   padding: 0;
-  height: 100%;
+  min-height: 100vh;
   font-family: 'Roboto', sans-serif;
   background: linear-gradient(45deg, rgb(145,157,169), rgb(225,235,245));
 }
@@ -11,6 +11,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  margin: 0;
 }
 
 /* Верхняя часть сайта */
@@ -65,12 +66,21 @@ nav ul li a.active {
   background: rgba(255,255,255,0.2);
 }
 
-/* Основной контент */
+/* Основной интерфейс */
+#main-ui {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  position: relative;
+  padding-bottom: 60px; /* Высота footer */
+}
+
 main {
-  flex: 1;
+  flex: 1 0 auto;
   padding: 2rem 1rem;
   max-width: 1200px;
   margin: 0 auto;
+  width: 100%;
 }
 
 /* Стили для карты */
@@ -131,7 +141,7 @@ main {
 
 /* Стили для таблиц в субвкладках */
 .table-tab {
-  margin-top: 1rem;
+  margin-top: 1рем;
 }
 .table-tab button.download-btn {
   background: #28a745;
@@ -163,10 +173,18 @@ main {
 
 /* Футер */
 footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
   background: #333;
   color: #fff;
   text-align: center;
-  padding: 1rem;
+  padding: 0;
+  height: 60px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Стили для страницы входа */
