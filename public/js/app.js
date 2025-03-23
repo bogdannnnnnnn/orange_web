@@ -120,7 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
       controls: [],
     });
     fetchSensors();
-    setInterval(fetchSensors, fetchInterval);
+    //setInterval(fetchSensors, fetchInterval);
   }
 
   function fetchSensors() {
@@ -137,6 +137,9 @@ document.addEventListener("DOMContentLoaded", () => {
           : [];
         addPlacemarks();
         populateTables();
+        if (document.getElementById("charts-section").style.display === "block") {
+          updateChart();
+        }
       })
       .catch((error) => console.error("Ошибка загрузки данных:", error));
   }
@@ -283,21 +286,66 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("map-section").style.display = "block";
     document.getElementById("table-section").style.display = "none";
     document.getElementById("add-sensor-section").style.display = "none";
+    document.getElementById("charts-section").style.display = "none"; // Скрываем графики
+  
     document.getElementById("tab-map").classList.add("active");
     document.getElementById("tab-table").classList.remove("active");
     document.getElementById("tab-add-sensor").classList.remove("active");
+    document.getElementById("tab-charts").classList.remove("active");
   });
+  
 
   document.getElementById("tab-table").addEventListener("click", (e) => {
     e.preventDefault();
     document.getElementById("map-section").style.display = "none";
     document.getElementById("table-section").style.display = "block";
     document.getElementById("add-sensor-section").style.display = "none";
+    document.getElementById("charts-section").style.display = "none"; // Скрываем графики
+  
     document.getElementById("tab-table").classList.add("active");
     document.getElementById("tab-map").classList.remove("active");
     document.getElementById("tab-add-sensor").classList.remove("active");
+    document.getElementById("tab-charts").classList.remove("active");
   });
-
+  
+  document.getElementById("tab-add-sensor").addEventListener("click", (e) => {
+    e.preventDefault();
+    if (userRole === 'user') {
+      alert('У вас нет доступа к этой функции');
+      return;
+    }
+    document.getElementById("map-section").style.display = "none";
+    document.getElementById("table-section").style.display = "none";
+    document.getElementById("add-sensor-section").style.display = "block";
+    document.getElementById("charts-section").style.display = "none"; // Скрываем графики
+  
+    document.getElementById("tab-add-sensor").classList.add("active");
+    document.getElementById("tab-map").classList.remove("active");
+    document.getElementById("tab-table").classList.remove("active");
+    document.getElementById("tab-charts").classList.remove("active");
+  });
+  
+  document.getElementById("tab-charts").addEventListener("click", (e) => {
+    e.preventDefault();
+    // Скрываем остальные секции
+    document.getElementById("map-section").style.display = "none";
+    document.getElementById("table-section").style.display = "none";
+    document.getElementById("add-sensor-section").style.display = "none";
+    // Отображаем секцию графиков
+    document.getElementById("charts-section").style.display = "block";
+  
+    document.getElementById("tab-charts").classList.add("active");
+    document.getElementById("tab-map").classList.remove("active");
+    document.getElementById("tab-table").classList.remove("active");
+    document.getElementById("tab-add-sensor").classList.remove("active");
+  
+    // Инициализируем график, если он ещё не создан, и обновляем данные
+    if (!sensorChart) {
+      initChart();
+    }
+    updateChart();
+  });
+  
   document.getElementById("tab-add-sensor").addEventListener("click", (e) => {
     e.preventDefault();
     if (userRole === 'user') {
@@ -578,4 +626,224 @@ document.addEventListener("DOMContentLoaded", () => {
         "Ошибка проверки кода. Попробуйте позже.";
     });
   });
+
+// Добавляем обработчик для вкладки графиков
+let sensorChart = null;
+document.getElementById("tab-charts").addEventListener("click", (e) => {
+  e.preventDefault();
+  // Скрываем другие секции
+  document.getElementById("map-section").style.display = "none";
+  document.getElementById("table-section").style.display = "none";
+  document.getElementById("add-sensor-section").style.display = "none";
+  // Отображаем секцию графиков
+  document.getElementById("charts-section").style.display = "block";
+  
+  // Обновляем классы активности в навигации
+  document.getElementById("tab-map").classList.remove("active");
+  document.getElementById("tab-table").classList.remove("active");
+  document.getElementById("tab-add-sensor").classList.remove("active");
+  document.getElementById("tab-charts").classList.add("active");
+  
+  // Инициализируем график, если ещё не создан, и обновляем данные
+  if (!sensorChart) {
+    initChart();
+  }
+  updateChart();
+});
+// Добавляем функции для работы с графиком
+function initChart() {
+  const ctx = document.getElementById('sensorChart').getContext('2d');
+  sensorChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [] // Здесь будут добавляться датасеты для каждого датчика
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: {
+          type: 'time',
+          time: {
+            tooltipFormat: 'dd.MM.yyyy HH:mm:ss',
+            displayFormats: {
+              millisecond: 'HH:mm:ss',
+              second: 'HH:mm:ss',
+              minute: 'HH:mm',
+              hour: 'HH:mm'
+            }
+          },
+          title: {
+            display: true,
+            text: 'Время'
+          }
+        },
+        y: {
+          title: {
+            display: true,
+            text: 'Значение'
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          // Позволяет по клику скрывать/отображать линии
+          onClick: (e, legendItem, legend) => {
+            const index = legendItem.datasetIndex;
+            const meta = sensorChart.getDatasetMeta(index);
+            meta.hidden = meta.hidden === null ? !sensorChart.data.datasets[index].hidden : null;
+            sensorChart.update();
+          }
+        }
+      }
+    }
+  });
+}
+// Добавляем функцию обновления графика
+function updateChart() {
+  if (!sensorChart) return;
+  
+  // Очищаем старые данные
+  sensorChart.data.datasets = [];
+  
+  // Для каждого датчика, если есть история данных, формируем набор точек
+  sensors.forEach(sensor => {
+    if (sensor.history && sensor.history.length > 0) {
+      // Сортируем историю по времени (от старых к новым)
+      const sortedHistory = sensor.history.slice().sort((a, b) => new Date(a.time) - new Date(b.time));
+      const dataPoints = sortedHistory.map(entry => ({
+        x: new Date(entry.time),
+        y: parseFloat(entry.data)
+      }));
+      sensorChart.data.datasets.push({
+        label: sensor.name ? sensor.name : sensor.id,
+        data: dataPoints,
+        fill: false,
+        borderColor: getRandomColor(),
+        tension: 0.1
+      });
+    }
+  });
+  
+  sensorChart.update();
+  
+  // Если датасетов нет, показываем информационное сообщение
+  const controlsContainer = document.getElementById('chart-controls');
+  if (sensorChart.data.datasets.length === 0) {
+    controlsContainer.innerHTML = '<p>Нет данных для отображения. Убедитесь, что датчики передают данные.</p>';
+  } else {
+    populateChartControls();
+  }
+}
+
+function getRandomColor() {
+  const letters = '0123456789ABCDEF';
+  let color = '#';
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+}
+// Добавляем функцию для отображения кнопок управления графиком
+function populateChartControls() {
+  const controlsContainer = document.getElementById('chart-controls');
+  controlsContainer.innerHTML = ''; // Очищаем предыдущие кнопки
+
+  // Создаём обёртку для кнопок с классом для стилизации
+  const wrapper = document.createElement('div');
+  wrapper.className = 'chart-controls-wrapper';
+
+  sensorChart.data.datasets.forEach((dataset, index) => {
+    const btn = document.createElement('button');
+    btn.textContent = dataset.label;
+    btn.className = 'chart-toggle-btn';
+    btn.onclick = () => {
+      const meta = sensorChart.getDatasetMeta(index);
+      meta.hidden = meta.hidden === null ? !dataset.hidden : null;
+      sensorChart.update();
+      btn.style.opacity = meta.hidden ? 0.5 : 1;
+    };
+    wrapper.appendChild(btn);
+  });
+  controlsContainer.appendChild(wrapper);
+}
+
+
+// Если вкладка графиков активна, обновляем график
+if (document.getElementById("charts-section").style.display !== "none" && sensorChart) {
+  updateChart();
+}
+
+function renderChart() {
+  const datasets = sensors.map(sensor => {
+    let dataPoints = [];
+    if (sensor.history && sensor.history.length) {
+      dataPoints = sensor.history
+        .map(entry => ({ x: new Date(entry.time), y: parseFloat(entry.data) }))
+        .sort((a, b) => a.x - b.x);
+    }
+    return {
+      label: sensor.name || sensor.id,
+      data: dataPoints,
+      fill: false,
+      borderColor: getRandomColor(),
+      tension: 0.1,
+      hidden: false
+    };
+  });
+  // Changed 'chartsCanvas' to 'sensorChart'
+  const ctx = document.getElementById('sensorChart').getContext('2d');
+  if (sensorChart) {
+    sensorChart.data.datasets = datasets;
+    sensorChart.update();
+  } else {
+    sensorChart = new Chart(ctx, {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            display: true,
+            onClick: (e, legendItem) => {
+              const index = legendItem.datasetIndex;
+              const meta = sensorChart.getDatasetMeta(index);
+              meta.hidden = meta.hidden === null ? !sensorChart.data.datasets[index].hidden : null;
+              sensorChart.update();
+              updateChartControls();
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: { tooltipFormat: 'dd.MM.yyyy HH:mm:ss' },
+            title: { display: true, text: 'Время' }
+          },
+          y: {
+            title: { display: true, text: 'Значение' }
+          }
+        }
+      }
+    });
+  }
+  updateChartControls();
+}
+// Add this function after renderChart
+function updateChartControls() {
+  const controlsContainer = document.getElementById('chart-controls');
+  controlsContainer.innerHTML = '';
+  sensorChart.data.datasets.forEach((dataset, index) => {
+    const btn = document.createElement('button');
+    btn.textContent = dataset.label;
+    btn.style.marginRight = '5px';
+    btn.onclick = () => {
+      const meta = sensorChart.getDatasetMeta(index);
+      meta.hidden = meta.hidden === null ? !dataset.hidden : null;
+      sensorChart.update();
+      btn.style.opacity = meta.hidden ? 0.5 : 1;
+    };
+    controlsContainer.appendChild(btn);
+  });
+}
 });
