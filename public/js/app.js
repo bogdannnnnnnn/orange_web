@@ -1,6 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
   let userRole = null;
   let updateInterval = null;
+  let myMap;
+  let placemarksLayer; // NEW: layer group for markers
 
   function restoreSession() {
     const savedCode = localStorage.getItem('accessCode');
@@ -35,8 +37,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("login-section").style.display = "none";
     document.getElementById("main-ui").style.display = "block";
     document.getElementById("tab-add-sensor").style.display = role === 'user' ? "none" : "";
-    ymaps.ready(initMap);
-    
+    // Replace ymaps.ready(initMap) with direct call to initMap using Leaflet
+    initMap();
     // Запускаем интервал обновления
     updateInterval = setInterval(fetchSensors, 2000);
   }
@@ -90,15 +92,15 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   let sensors = [];
-  let myMap;
   const fetchInterval = 2000;
 
   function initMap() {
-    myMap = new ymaps.Map("map", {
-      center: [0, 0],
-      zoom: 2,
-      controls: [],
-    });
+    // Initialize Leaflet map with OpenStreetMap tiles
+    myMap = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(myMap);
+    placemarksLayer = L.layerGroup().addTo(myMap);
     fetchSensors();
   }
 
@@ -117,22 +119,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function addPlacemarks() {
-    myMap.geoObjects.removeAll();
+    placemarksLayer.clearLayers();
     sensors.forEach((sensor) => {
       if (!document.querySelector(`.filter[value="${sensor.type}"]`).checked)
         return;
-      let placemark = new ymaps.Placemark(
-        [sensor.lat, sensor.lng],
-        {
-          hintContent: sensor.name,
-          balloonContent: `<strong>${sensor.name}</strong><br>ID: ${sensor.id}<br>Тип: ${getSensorTypeName(sensor.type)}`,
-        },
-        {
-          preset: "islands#icon",
-          iconColor: "#0095b6",
-        }
-      );
-      myMap.geoObjects.add(placemark);
+      const marker = L.marker([parseFloat(sensor.lat), parseFloat(sensor.lng)])
+        .bindPopup(`<strong>${sensor.name}</strong><br>ID: ${sensor.id}<br>Тип: ${getSensorTypeName(sensor.type)}`);
+      placemarksLayer.addLayer(marker);
     });
   }
 
