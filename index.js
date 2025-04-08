@@ -6,6 +6,9 @@ const readline = require('readline');
 const fs = require('fs');
 const app = express();
 
+const ip = 'localhost';
+const PORT = 4000;
+
 const accessCodes = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'access-codes.json'), 'utf8'));
 
 app.use(express.json());
@@ -17,7 +20,7 @@ app.get("/", (req, res) => {
 
 const pool = new Pool({
     user: 'app_user',
-    host: 'localhost',
+    host: ip,
     database: 'sensor_db',
     password: 'user',
     port: 5432,
@@ -177,7 +180,7 @@ function startServer() {
             await clearTables();
         }
         
-        mqttClient = mqtt.connect('mqtt://192.168.1.202');
+        mqttClient = mqtt.connect(`mqtt://${ip}:1883`);
 
         mqttClient.on('connect', () => {
             console.log('Подключено к MQTT брокеру');
@@ -252,5 +255,3 @@ process.on('SIGINT', () => {
     pool.end();
     process.exit();
 });
-
-const PORT = 4000;
