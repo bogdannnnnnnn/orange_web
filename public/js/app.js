@@ -1,45 +1,59 @@
 document.addEventListener("DOMContentLoaded", () => {
-  let userRole = null; // Add this at the top
+  let userRole = null;
+  let updateInterval = null;
 
-  // Add session restore function
   function restoreSession() {
     const savedCode = localStorage.getItem('accessCode');
-    if (savedCode) {
-      fetch("/api/verify-code", {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code: savedCode })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.valid) {
-          userRole = data.role;
-          document.getElementById("login-section").style.display = "none";
-          document.getElementById("main-ui").style.display = "block";
-          
-          if (userRole === 'user') {
-            document.getElementById("tab-add-sensor").style.display = "none";
-          }
-          
-          ymaps.ready(initMap);
-        } else {
-          localStorage.removeItem('accessCode');
-          document.getElementById("login-section").style.display = "flex";
-        }
-      })
-      .catch(error => {
-        console.error('Ошибка восстановления сессии:', error);
-        localStorage.removeItem('accessCode');
-        document.getElementById("login-section").style.display = "flex";
-      });
-    } else {
+    if (!savedCode) {
       document.getElementById("login-section").style.display = "flex";
+      return;
     }
+
+    verifyCode(savedCode);
   }
 
-  // Call restore session on page load
+  function verifyCode(code) {
+    fetch("/api/verify-code", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.valid) {
+        initializeUI(data.role, code);
+      } else {
+        handleInvalidCode();
+      }
+    })
+    .catch(error => handleError(error));
+  }
+
+  function initializeUI(role, code) {
+    userRole = role;
+    localStorage.setItem('accessCode', code);
+    document.getElementById("login-section").style.display = "none";
+    document.getElementById("main-ui").style.display = "block";
+    document.getElementById("tab-add-sensor").style.display = role === 'user' ? "none" : "";
+    ymaps.ready(initMap);
+    
+    // Запускаем интервал обновления
+    updateInterval = setInterval(fetchSensors, 2000);
+  }
+
+  function handleInvalidCode() {
+    localStorage.removeItem('accessCode');
+    document.getElementById("login-section").style.display = "flex";
+    document.getElementById("login-error").textContent = "Неверный код. Попробуйте снова.";
+  }
+
+  function handleError(error) {
+    console.error('Ошибка:', error);
+    localStorage.removeItem('accessCode');
+    document.getElementById("login-section").style.display = "flex";
+    document.getElementById("login-error").textContent = "Ошибка проверки кода. Попробуйте позже.";
+  }
+
   restoreSession();
 
   const loginBtn = document.getElementById("login-btn");
@@ -48,38 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   loginBtn.addEventListener("click", function () {
     const code = loginCodeInput.value.trim();
-    
-    fetch("/api/verify-code", {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ code })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.valid) {
-        userRole = data.role; // Store the role
-        localStorage.setItem('accessCode', code); // Save code to localStorage
-        document.getElementById("login-section").style.display = "none";
-        document.getElementById("main-ui").style.display = "block";
-        
-        // Hide "Add sensor" tab for users
-        if (userRole === 'user') {
-          document.getElementById("tab-add-sensor").style.display = "none";
-        }
-        
-        ymaps.ready(initMap);
-      } else {
-        document.getElementById("login-error").textContent = 
-          "Неверный код. Попробуйте снова.";
-      }
-    })
-    .catch(error => {
-      console.error('Ошибка проверки кода:', error);
-      document.getElementById("login-error").textContent = 
-        "Ошибка проверки кода. Попробуйте позже.";
-    });
+    verifyCode(code);
   });
 
   loginCodeInput.addEventListener("keydown", function (e) {
@@ -98,7 +81,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Переключатель тем (Dark/Light Mode)
   const darkModeToggle = document.getElementById("dark-mode-toggle");
   let isDarkMode = false;
   darkModeToggle.addEventListener("click", function () {
@@ -107,9 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
     darkModeToggle.textContent = isDarkMode ? "Светлая тема" : "Тёмная тема";
   });
 
-  // Переменные для работы с датчиками и картой
   let sensors = [];
-  let gateways = [];
   let myMap;
   const fetchInterval = 2000;
 
@@ -120,7 +100,6 @@ document.addEventListener("DOMContentLoaded", () => {
       controls: [],
     });
     fetchSensors();
-    //setInterval(fetchSensors, fetchInterval);
   }
 
   function fetchSensors() {
@@ -128,13 +107,6 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((response) => response.json())
       .then((data) => {
         sensors = data.sensors || [];
-        gateways = data.rxInfo
-          ? data.rxInfo.map((info) => ({
-              latitude: info.location.latitude,
-              longitude: info.location.longitude,
-              name: info.gatewayId,
-            }))
-          : [];
         addPlacemarks();
         populateTables();
         if (document.getElementById("charts-section").style.display === "block") {
@@ -147,34 +119,17 @@ document.addEventListener("DOMContentLoaded", () => {
   function addPlacemarks() {
     myMap.geoObjects.removeAll();
     sensors.forEach((sensor) => {
-      // Если фильтр для данного типа датчика выключен, пропускаем его
       if (!document.querySelector(`.filter[value="${sensor.type}"]`).checked)
         return;
       let placemark = new ymaps.Placemark(
         [sensor.lat, sensor.lng],
         {
           hintContent: sensor.name,
-          balloonContent: `<strong>${sensor.name}</strong><br>ID: ${sensor.id}<br>Тип: ${getSensorTypeName(
-            sensor.type
-          )}<br>Данные: ${sensor.data.value} ${sensor.data.unit}`,
+          balloonContent: `<strong>${sensor.name}</strong><br>ID: ${sensor.id}<br>Тип: ${getSensorTypeName(sensor.type)}`,
         },
         {
           preset: "islands#icon",
           iconColor: "#0095b6",
-        }
-      );
-      myMap.geoObjects.add(placemark);
-    });
-    gateways.forEach((gateway) => {
-      let placemark = new ymaps.Placemark(
-        [gateway.latitude, gateway.longitude],
-        {
-          hintContent: `Шлюз: ${gateway.name}`,
-          balloonContent: `<strong>Шлюз</strong><br>ID: ${gateway.name}<br>`,
-        },
-        {
-          preset: "islands#icon",
-          iconColor: "#ff0000",
         }
       );
       myMap.geoObjects.add(placemark);
@@ -189,6 +144,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return "Дождь";
       case "dust":
         return "Количество пыли";
+      case "environmental":
+        return "Окружающая среда";
       default:
         return type;
     }
@@ -199,80 +156,100 @@ document.addEventListener("DOMContentLoaded", () => {
     const options = {
       year: 'numeric',
       month: '2-digit',
-      day: 'numeric',
+      day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
       timeZone: 'Europe/Moscow'
     };
-    return new Intl.DateTimeFormat('ru-RU', options).format(date);
+    return new Intl.DateTimeFormat('ru-RU', options)
+      .format(date)
+      .replace(',', '');
   }
 
   function populateTables() {
-    const tbodyAir = document.querySelector("#content-airQuality tbody");
-    const tbodyRain = document.querySelector("#content-rain tbody");
-    const tbodyDust = document.querySelector("#content-dust tbody");
-    tbodyAir.innerHTML = "";
-    tbodyRain.innerHTML = "";
-    tbodyDust.innerHTML = "";
-
-    // Create object to store all entries by type
-    const entriesByType = {
-      airQuality: [],
-      rain: [],
-      dust: []
+    const tables = {
+        airQuality: document.querySelector("#content-airQuality tbody"),
+        rain: document.querySelector("#content-rain tbody"),
+        dust: document.querySelector("#content-dust tbody"),
+        environmental: document.querySelector("#content-environmental tbody")
     };
 
-    // Collect all entries
-    sensors.forEach((sensor) => {
-      sensor.history.forEach((entry) => {
-        if (entry.data !== null && entry.data !== undefined) {
-          const tableEntry = {
-            id: sensor.id,
-            name: sensor.name,
-            lat: sensor.lat,
-            lng: sensor.lng,
-            time: new Date(entry.time),
-            data: entry.data,
-            unit: sensor.data.unit,
-            type: sensor.type
-          };
-          entriesByType[sensor.type].push(tableEntry);
+    Object.keys(tables).forEach(type => {
+        if (tables[type]) tables[type].innerHTML = "";
+    });
+
+    const entriesByType = sensors.reduce((acc, sensor) => {
+        if (!sensor.history || !sensor.history.length) return acc;
+        
+        acc[sensor.type] = acc[sensor.type] || [];
+        sensor.history.forEach(entry => {
+            acc[sensor.type].push({
+                id: sensor.id,
+                name: sensor.name,
+                lat: sensor.lat,
+                lng: sensor.lng,
+                time: entry.time,
+                data: entry.data,
+                type: sensor.type
+            });
+        });
+        return acc;
+    }, {});
+
+    Object.entries(entriesByType).forEach(([type, entries]) => {
+        if (tables[type]) {
+            entries
+                .sort((a, b) => new Date(b.time) - new Date(a.time))
+                .forEach(entry => {
+                    tables[type].innerHTML += createTableRow(entry);
+                });
         }
-      });
     });
-
-    // Sort entries by time (newest first)
-    Object.values(entriesByType).forEach(entries => {
-      entries.sort((a, b) => b.time - a.time);
-    });
-
-    // Populate tables with sorted data
-    entriesByType.airQuality.forEach(entry => {
-      tbodyAir.innerHTML += createTableRow(entry);
-    });
-
-    entriesByType.rain.forEach(entry => {
-      tbodyRain.innerHTML += createTableRow(entry);
-    });
-
-    entriesByType.dust.forEach(entry => {
-      tbodyDust.innerHTML += createTableRow(entry);
-    });
-  }
+}
 
   function createTableRow(entry) {
-    return `<tr>
-      <td>${entry.id}</td>
-      <td>${entry.name}</td>
-      <td>${entry.lat}</td>
-      <td>${entry.lng}</td>
-      <td>${formatDateTime(entry.time)}</td>
-      <td>${entry.data} ${entry.unit}</td>
-    </tr>`;
-  }
+    if (entry.type === 'environmental') {
+        let data;
+        try {
+            data = typeof entry.data === 'string' ? JSON.parse(entry.data) : entry.data;
+        } catch (e) {
+            console.error('Error parsing environmental data:', e);
+            return '';
+        }
 
-  // Обработчики для глобальных фильтров
+        const environmentalData = {
+            pm25: data.pm25 || 0,
+            pm10: data.pm10 || 0,
+            temperature: data.temperature || 0,
+            humidity: data.humidity || 0,
+            pressure: data.pressure || 0
+        };
+
+        return `<tr>
+            <td>${entry.id}</td>
+            <td>${entry.name}</td>
+            <td>${entry.lat}</td>
+            <td>${entry.lng}</td>
+            <td>${formatDateTime(entry.time)}</td>
+            <td>${environmentalData.pm25}</td>
+            <td>${environmentalData.pm10}</td>
+            <td>${environmentalData.temperature}</td>
+            <td>${environmentalData.humidity}</td>
+            <td>${environmentalData.pressure}</td>
+        </tr>`;
+    } else {
+        return `<tr>
+            <td>${entry.id}</td>
+            <td>${entry.name}</td>
+            <td>${entry.lat}</td>
+            <td>${entry.lng}</td>
+            <td>${formatDateTime(entry.time)}</td>
+            <td>${entry.data}</td>
+        </tr>`;
+    }
+}
+
   document.querySelectorAll(".filter").forEach((checkbox) => {
     checkbox.addEventListener("change", () => {
       addPlacemarks();
@@ -280,13 +257,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Переключение между основными вкладками
   document.getElementById("tab-map").addEventListener("click", (e) => {
     e.preventDefault();
     document.getElementById("map-section").style.display = "block";
     document.getElementById("table-section").style.display = "none";
     document.getElementById("add-sensor-section").style.display = "none";
-    document.getElementById("charts-section").style.display = "none"; // Скрываем графики
+    document.getElementById("charts-section").style.display = "none";
   
     document.getElementById("tab-map").classList.add("active");
     document.getElementById("tab-table").classList.remove("active");
@@ -300,7 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("map-section").style.display = "none";
     document.getElementById("table-section").style.display = "block";
     document.getElementById("add-sensor-section").style.display = "none";
-    document.getElementById("charts-section").style.display = "none"; // Скрываем графики
+    document.getElementById("charts-section").style.display = "none";
   
     document.getElementById("tab-table").classList.add("active");
     document.getElementById("tab-map").classList.remove("active");
@@ -317,7 +293,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("map-section").style.display = "none";
     document.getElementById("table-section").style.display = "none";
     document.getElementById("add-sensor-section").style.display = "block";
-    document.getElementById("charts-section").style.display = "none"; // Скрываем графики
+    document.getElementById("charts-section").style.display = "none";
   
     document.getElementById("tab-add-sensor").classList.add("active");
     document.getElementById("tab-map").classList.remove("active");
@@ -327,11 +303,9 @@ document.addEventListener("DOMContentLoaded", () => {
   
   document.getElementById("tab-charts").addEventListener("click", (e) => {
     e.preventDefault();
-    // Скрываем остальные секции
     document.getElementById("map-section").style.display = "none";
     document.getElementById("table-section").style.display = "none";
     document.getElementById("add-sensor-section").style.display = "none";
-    // Отображаем секцию графиков
     document.getElementById("charts-section").style.display = "block";
   
     document.getElementById("tab-charts").classList.add("active");
@@ -339,7 +313,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("tab-table").classList.remove("active");
     document.getElementById("tab-add-sensor").classList.remove("active");
   
-    // Инициализируем график, если он ещё не создан, и обновляем данные
     if (!sensorChart) {
       initChart();
     }
@@ -358,52 +331,42 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("tab-add-sensor").classList.add("active");
     document.getElementById("tab-map").classList.remove("active");
     document.getElementById("tab-table").classList.remove("active");
-    populateSensorIds(); // Add this line
+    populateSensorIds();
   });
 
-  // Новая логика переключения субвкладок (таблиц с данными датчиков)
   document.querySelectorAll("#table-tabs ul li a").forEach((tab) => {
     tab.addEventListener("click", (e) => {
       e.preventDefault();
-      // Убираем класс active у всех субвкладок
       document.querySelectorAll("#table-tabs ul li a").forEach((t) =>
         t.classList.remove("active")
       );
-      // Скрываем все блоки с таблицами
       document.querySelectorAll(".table-tab").forEach(
         (content) => (content.style.display = "none")
       );
-      // Добавляем active для нажатой вкладки и отображаем соответствующий контент
       tab.classList.add("active");
       const type = tab.getAttribute("data-type");
       document.getElementById("content-" + type).style.display = "block";
     });
   });
 
-  // Replace existing populateSensorIds function
   function populateSensorIds() {
-    // First get registered sensors
     fetch("/api/sensor-ids")
         .then(response => response.json())
         .then(registeredIds => {
-            // Then get available sensors
             fetch("/api/available-sensor-ids")
                 .then(response => response.json())
                 .then(availableIds => {
                     const sensorIdSelect = document.getElementById("sensor-id");
-                    // Clear existing options except the first one
                     while (sensorIdSelect.options.length > 1) {
                         sensorIdSelect.remove(1);
                     }
 
-                    // Add registered sensors first with a special marker
                     registeredIds.forEach(id => {
                         const option = new Option(`${id} (Зарегистрирован)`, id);
                         option.className = 'registered-sensor';
                         sensorIdSelect.add(option);
                     });
 
-                    // Add available but unregistered sensors
                     availableIds
                         .filter(id => !registeredIds.includes(id))
                         .forEach(id => {
@@ -416,7 +379,6 @@ document.addEventListener("DOMContentLoaded", () => {
         .catch(error => console.error("Ошибка загрузки ID датчиков:", error));
   }
 
-  // Add these functions after populateSensorIds()
   function populateSensorForm(sensorId) {
     fetch(`/api/sensor/${sensorId}`)
       .then(response => response.json())
@@ -429,14 +391,12 @@ document.addEventListener("DOMContentLoaded", () => {
       .catch(error => console.error("Ошибка загрузки данных датчика:", error));
   }
 
-  // Add event listener for sensor ID selection
   document.getElementById("sensor-id").addEventListener("change", function(e) {
     if (e.target.value) {
       populateSensorForm(e.target.value);
     }
   });
 
-  // Remove duplicate form submission handler and update the existing one
   document.getElementById("new-sensor-form").addEventListener("submit", function(e) {
     e.preventDefault();
     const sensorId = document.getElementById("sensor-id").value;
@@ -450,22 +410,18 @@ document.addEventListener("DOMContentLoaded", () => {
       lng: parseFloat(document.getElementById("sensor-lng").value)
     };
 
-    // Common headers for both requests
     const headers = {
       'Content-Type': 'application/json',
-      'user-role': userRole // Add user role to headers
+      'user-role': userRole
     };
 
-    // Clear error message
     document.getElementById("new-sensor-error").textContent = "";
 
-    // Validate required fields
     if (!formData.type || !formData.name) {
       document.getElementById("new-sensor-error").textContent = "Заполните все обязательные поля";
       return;
     }
 
-    // Determine if this is a new sensor or update
     fetch(`/api/sensor/${sensorId}`)
       .then(response => {
         isNewSensor = response.status === 404;
@@ -487,7 +443,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (response.ok) {
           alert("Датчик успешно " + (isNewSensor ? "добавлен" : "обновлен") + "!");
           fetchSensors();
-          // Clear form after successful submission
           if (isNewSensor) {
             document.getElementById("new-sensor-form").reset();
           }
@@ -509,17 +464,34 @@ document.addEventListener("DOMContentLoaded", () => {
       alert("Нет данных для скачивания");
       return;
     }
-
-    let csvContent = "ID,Название,Широта,Долгота,Время,Данные,Единицы измерения\n";
-
+    let header = "";
+    if (type === "environmental") {
+      header = "ID,Название,Широта,Долгота,Время,PM2.5 мкг/м³,PM10 мкг/м³,Температура °C,Влажность %,Давление mmHg\n";
+    } else {
+      header = "ID,Название,Широта,Долгота,Время,Данные\n";
+    }
+    let csvContent = header;
     sensorData.forEach(sensor => {
       sensor.history.forEach(entry => {
         if (entry.data !== null && entry.data !== undefined) {
-          csvContent += `${sensor.id},${sensor.name},${sensor.lat},${sensor.lng},${formatDateTime(entry.time)},${entry.data},${sensor.data.unit}\n`;
+          const time = formatDateTime(entry.time);
+          let rowData = "";
+          if (type === "environmental") {
+            let data;
+            try {
+              data = typeof entry.data === 'string' ? JSON.parse(entry.data) : entry.data;
+            } catch (e) {
+              console.error('Error parsing environmental data for CSV:', e);
+              data = { pm25: 0, pm10: 0, temperature: 0, humidity: 0, pressure: 0 };
+            }
+            rowData = `${sensor.id},${sensor.name},${sensor.lat},${sensor.lng},${time},${data.pm25 || 0},${data.pm10 || 0},${data.temperature || 0},${data.humidity || 0},${data.pressure || 0}\n`;
+          } else {
+            rowData = `${sensor.id},${sensor.name},${sensor.lat},${sensor.lng},${time},${entry.data}\n`;
+          }
+          csvContent += rowData;
         }
       });
     });
-
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -530,7 +502,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.removeChild(link);
   }
 
-  // Add event listeners for download buttons
   document.querySelectorAll('.download-btn').forEach(button => {
     button.addEventListener('click', (e) => {
       const type = e.target.getAttribute('data-type');
@@ -538,312 +509,336 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Add logout functionality
   document.getElementById("logout-btn").addEventListener("click", function() {
     userRole = null;
-    localStorage.removeItem('accessCode'); // Remove saved code
+    localStorage.removeItem('accessCode');
     document.getElementById("main-ui").style.display = "none";
     document.getElementById("login-section").style.display = "flex";
     document.getElementById("login-code").value = "";
-    // Reset any form data
     if (document.getElementById("new-sensor-form")) {
       document.getElementById("new-sensor-form").reset();
     }
+    
+    if (updateInterval) {
+      clearInterval(updateInterval);
+      updateInterval = null;
+    }
   });
 
-  // Add function to handle tab visibility
   function updateTabVisibility(role) {
     const addSensorTab = document.getElementById("tab-add-sensor");
     if (role === 'admin') {
-      addSensorTab.style.display = ''; // Show tab
+      addSensorTab.style.display = '';
     } else {
-      addSensorTab.style.display = 'none'; // Hide tab
+      addSensorTab.style.display = 'none';
     }
   }
 
-  // Modify restore session function
-  function restoreSession() {
-    const savedCode = localStorage.getItem('accessCode');
-    if (savedCode) {
-      fetch("/api/verify-code", {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code: savedCode })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.valid) {
-          userRole = data.role;
-          document.getElementById("login-section").style.display = "none";
-          document.getElementById("main-ui").style.display = "block";
-          updateTabVisibility(userRole);
-          ymaps.ready(initMap);
-        } else {
-          localStorage.removeItem('accessCode');
-          document.getElementById("login-section").style.display = "flex";
-        }
-      })
-      .catch(error => {
-        console.error('Ошибка восстановления сессии:', error);
-        localStorage.removeItem('accessCode');
-        document.getElementById("login-section").style.display = "flex";
-      });
-    } else {
-      document.getElementById("login-section").style.display = "flex";
-    }
-  }
-
-  // Modify login button handler
-  loginBtn.addEventListener("click", function () {
-    const code = loginCodeInput.value.trim();
+  let sensorChart = null;
+  let sensorColors = {}; // NEW: store fixed colors for sensors
+  let chartHiddenStates = {}; // NEW: global variable to store chart filters state
+  document.getElementById("tab-charts").addEventListener("click", (e) => {
+    e.preventDefault();
+    document.getElementById("map-section").style.display = "none";
+    document.getElementById("table-section").style.display = "none";
+    document.getElementById("add-sensor-section").style.display = "none";
+    document.getElementById("charts-section").style.display = "block";
     
-    fetch("/api/verify-code", {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ code })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.valid) {
-        userRole = data.role;
-        localStorage.setItem('accessCode', code);
-        document.getElementById("login-section").style.display = "none";
-        document.getElementById("main-ui").style.display = "block";
-        updateTabVisibility(userRole);
-        ymaps.ready(initMap);
-      } else {
-        document.getElementById("login-error").textContent = 
-          "Неверный код. Попробуйте снова.";
-      }
-    })
-    .catch(error => {
-      console.error('Ошибка проверки кода:', error);
-      document.getElementById("login-error").textContent = 
-        "Ошибка проверки кода. Попробуйте позже.";
-    });
-  });
-
-// Добавляем обработчик для вкладки графиков
-let sensorChart = null;
-document.getElementById("tab-charts").addEventListener("click", (e) => {
-  e.preventDefault();
-  // Скрываем другие секции
-  document.getElementById("map-section").style.display = "none";
-  document.getElementById("table-section").style.display = "none";
-  document.getElementById("add-sensor-section").style.display = "none";
-  // Отображаем секцию графиков
-  document.getElementById("charts-section").style.display = "block";
-  
-  // Обновляем классы активности в навигации
-  document.getElementById("tab-map").classList.remove("active");
-  document.getElementById("tab-table").classList.remove("active");
-  document.getElementById("tab-add-sensor").classList.remove("active");
-  document.getElementById("tab-charts").classList.add("active");
-  
-  // Инициализируем график, если ещё не создан, и обновляем данные
-  if (!sensorChart) {
-    initChart();
-  }
-  updateChart();
-});
-// Добавляем функции для работы с графиком
-function initChart() {
-  const ctx = document.getElementById('sensorChart').getContext('2d');
-  sensorChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      datasets: [] // Здесь будут добавляться датасеты для каждого датчика
-    },
-    options: {
-      responsive: true,
-      scales: {
-        x: {
-          type: 'time',
-          time: {
-            tooltipFormat: 'dd.MM.yyyy HH:mm:ss',
-            displayFormats: {
-              millisecond: 'HH:mm:ss',
-              second: 'HH:mm:ss',
-              minute: 'HH:mm',
-              hour: 'HH:mm'
-            }
-          },
-          title: {
-            display: true,
-            text: 'Время'
-          }
-        },
-        y: {
-          title: {
-            display: true,
-            text: 'Значение'
-          }
-        }
-      },
-      plugins: {
-        legend: {
-          display: true,
-          // Позволяет по клику скрывать/отображать линии
-          onClick: (e, legendItem, legend) => {
-            const index = legendItem.datasetIndex;
-            const meta = sensorChart.getDatasetMeta(index);
-            meta.hidden = meta.hidden === null ? !sensorChart.data.datasets[index].hidden : null;
-            sensorChart.update();
-          }
-        }
-      }
+    document.getElementById("tab-map").classList.remove("active");
+    document.getElementById("tab-table").classList.remove("active");
+    document.getElementById("tab-add-sensor").classList.remove("active");
+    document.getElementById("tab-charts").classList.add("active");
+    
+    if (!sensorChart) {
+      initChart();
     }
+    updateChart();
   });
-}
-// Добавляем функцию обновления графика
-function updateChart() {
-  if (!sensorChart) return;
-  
-  // Очищаем старые данные
-  sensorChart.data.datasets = [];
-  
-  // Для каждого датчика, если есть история данных, формируем набор точек
-  sensors.forEach(sensor => {
-    if (sensor.history && sensor.history.length > 0) {
-      // Сортируем историю по времени (от старых к новым)
-      const sortedHistory = sensor.history.slice().sort((a, b) => new Date(a.time) - new Date(b.time));
-      const dataPoints = sortedHistory.map(entry => ({
-        x: new Date(entry.time),
-        y: parseFloat(entry.data)
-      }));
-      sensorChart.data.datasets.push({
-        label: sensor.name ? sensor.name : sensor.id,
-        data: dataPoints,
-        fill: false,
-        borderColor: getRandomColor(),
-        tension: 0.1
-      });
-    }
-  });
-  
-  sensorChart.update();
-  
-  // Если датасетов нет, показываем информационное сообщение
-  const controlsContainer = document.getElementById('chart-controls');
-  if (sensorChart.data.datasets.length === 0) {
-    controlsContainer.innerHTML = '<p>Нет данных для отображения. Убедитесь, что датчики передают данные.</p>';
-  } else {
-    populateChartControls();
-  }
-}
 
-function getRandomColor() {
-  const letters = '0123456789ABCDEF';
-  let color = '#';
-  for (let i = 0; i < 6; i++) {
-    color += letters[Math.floor(Math.random() * 16)];
-  }
-  return color;
-}
-// Добавляем функцию для отображения кнопок управления графиком
-function populateChartControls() {
-  const controlsContainer = document.getElementById('chart-controls');
-  controlsContainer.innerHTML = ''; // Очищаем предыдущие кнопки
-
-  // Создаём обёртку для кнопок с классом для стилизации
-  const wrapper = document.createElement('div');
-  wrapper.className = 'chart-controls-wrapper';
-
-  sensorChart.data.datasets.forEach((dataset, index) => {
-    const btn = document.createElement('button');
-    btn.textContent = dataset.label;
-    btn.className = 'chart-toggle-btn';
-    btn.onclick = () => {
-      const meta = sensorChart.getDatasetMeta(index);
-      meta.hidden = meta.hidden === null ? !dataset.hidden : null;
-      sensorChart.update();
-      btn.style.opacity = meta.hidden ? 0.5 : 1;
-    };
-    wrapper.appendChild(btn);
-  });
-  controlsContainer.appendChild(wrapper);
-}
-
-
-// Если вкладка графиков активна, обновляем график
-if (document.getElementById("charts-section").style.display !== "none" && sensorChart) {
-  updateChart();
-}
-
-function renderChart() {
-  const datasets = sensors.map(sensor => {
-    let dataPoints = [];
-    if (sensor.history && sensor.history.length) {
-      dataPoints = sensor.history
-        .map(entry => ({ x: new Date(entry.time), y: parseFloat(entry.data) }))
-        .sort((a, b) => a.x - b.x);
-    }
-    return {
-      label: sensor.name || sensor.id,
-      data: dataPoints,
-      fill: false,
-      borderColor: getRandomColor(),
-      tension: 0.1,
-      hidden: false
-    };
-  });
-  // Changed 'chartsCanvas' to 'sensorChart'
-  const ctx = document.getElementById('sensorChart').getContext('2d');
-  if (sensorChart) {
-    sensorChart.data.datasets = datasets;
-    sensorChart.update();
-  } else {
+  function initChart() {
+    const ctx = document.getElementById('sensorChart').getContext('2d');
     sensorChart = new Chart(ctx, {
       type: 'line',
-      data: { datasets },
+      data: {
+        datasets: []
+      },
       options: {
+        animation: false, // Отключаем анимацию
         responsive: true,
+        scales: {
+          x: {
+            type: 'time',
+            time: {
+              tooltipFormat: 'dd.MM.yyyy HH:mm:ss',
+              displayFormats: {
+                millisecond: 'HH:mm:ss',
+                second: 'HH:mm:ss',
+                minute: 'HH:mm',
+                hour: 'HH:mm'
+              }
+            },
+            title: {
+              display: true,
+              text: 'Время'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'Значение'
+            }
+          }
+        },
         plugins: {
           legend: {
             display: true,
-            onClick: (e, legendItem) => {
+            onClick: (e, legendItem, legend) => {
               const index = legendItem.datasetIndex;
               const meta = sensorChart.getDatasetMeta(index);
               meta.hidden = meta.hidden === null ? !sensorChart.data.datasets[index].hidden : null;
               sensorChart.update();
-              updateChartControls();
             }
-          }
-        },
-        scales: {
-          x: {
-            type: 'time',
-            time: { tooltipFormat: 'dd.MM.yyyy HH:mm:ss' },
-            title: { display: true, text: 'Время' }
-          },
-          y: {
-            title: { display: true, text: 'Значение' }
           }
         }
       }
     });
   }
-  updateChartControls();
-}
-// Add this function after renderChart
-function updateChartControls() {
-  const controlsContainer = document.getElementById('chart-controls');
-  controlsContainer.innerHTML = '';
-  sensorChart.data.datasets.forEach((dataset, index) => {
-    const btn = document.createElement('button');
-    btn.textContent = dataset.label;
-    btn.style.marginRight = '5px';
-    btn.onclick = () => {
-      const meta = sensorChart.getDatasetMeta(index);
-      meta.hidden = meta.hidden === null ? !dataset.hidden : null;
-      sensorChart.update();
-      btn.style.opacity = meta.hidden ? 0.5 : 1;
+
+  function updateChart() {
+    if (!sensorChart) return;
+    
+    sensorChart.data.datasets = [];
+    
+    sensors.forEach(sensor => {
+      if (sensor.history && sensor.history.length > 0) {
+        if (sensor.type === 'environmental') {
+          const parameters = ['pm25', 'pm10', 'temperature', 'humidity', 'pressure'];
+          const colors = {
+            pm25: '#FF6384',
+            pm10: '#36A2EB',
+            temperature: '#FFCE56',
+            humidity: '#4BC0C0',
+            pressure: '#9966FF'
+          };
+          
+          parameters.forEach(param => {
+            const dataPoints = sensor.history
+              .map(entry => {
+                let data = typeof entry.data === 'string' ? JSON.parse(entry.data) : entry.data;
+                return {
+                  x: new Date(entry.time),
+                  y: data[param]
+                };
+              })
+              .sort((a, b) => a.x - b.x);
+  
+            sensorChart.data.datasets.push({
+              label: `${sensor.name} - ${getParameterName(param)}`,
+              data: dataPoints,
+              fill: false,
+              borderColor: colors[param],
+              tension: 0.1,
+              hidden: chartHiddenStates.hasOwnProperty(`${sensor.name} - ${getParameterName(param)}`) 
+                        ? chartHiddenStates[`${sensor.name} - ${getParameterName(param)}`] 
+                        : false
+            });
+          });
+        } else {
+          const dataPoints = sensor.history
+            .map(entry => ({
+              x: new Date(entry.time),
+              y: parseFloat(entry.data)
+            }))
+            .sort((a, b) => a.x - b.x);
+          
+          // NEW: Use fixed color for each sensor
+          if (!sensorColors[sensor.name]) {
+            sensorColors[sensor.name] = getRandomColor();
+          }
+          const fixedColor = sensorColors[sensor.name];
+  
+          sensorChart.data.datasets.push({
+            label: sensor.name,
+            data: dataPoints,
+            fill: false,
+            borderColor: fixedColor, // use stored color
+            tension: 0.1,
+            hidden: chartHiddenStates.hasOwnProperty(sensor.name) ? chartHiddenStates[sensor.name] : false
+          });
+        }
+      }
+    });
+    
+    sensorChart.update();
+    populateChartControls();
+  }
+
+  function getParameterName(param) {
+    const names = {
+      pm25: 'PM2.5 (мкг/м³)',
+      pm10: 'PM10 (мкг/м³)',
+      temperature: 'Температура (°C)',
+      humidity: 'Влажность (%)',
+      pressure: 'Давление (mmHg)'
     };
-    controlsContainer.appendChild(btn);
-  });
-}
+    return names[param] || param;
+  }
+
+  function getRandomColor() {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+  }
+
+  function populateChartControls() {
+    const controlsContainer = document.getElementById('chart-controls');
+    controlsContainer.innerHTML = '';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chart-controls-wrapper';
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column'; // arrange groups vertically
+
+    // Группируем датасеты для environmental по названию датчика
+    const groups = {};
+    sensorChart.data.datasets.forEach((dataset, index) => {
+      const parts = dataset.label.split(' - ');
+      if (parts.length === 2) {
+        const sensorName = parts[0];
+        if (!groups[sensorName]) groups[sensorName] = [];
+        groups[sensorName].push({ index, label: parts[1] });
+      } else {
+        // Для остальных датчиков создаем кнопку напрямую
+        const btn = document.createElement('button');
+        btn.textContent = dataset.label;
+        btn.className = 'chart-toggle-btn';
+        btn.style.opacity = dataset.hidden ? 0.5 : 1;
+        btn.onclick = () => {
+          const meta = sensorChart.getDatasetMeta(index);
+          dataset.hidden = !dataset.hidden;
+          chartHiddenStates[dataset.label] = dataset.hidden;
+          meta.hidden = dataset.hidden;
+          sensorChart.update();
+          btn.style.opacity = dataset.hidden ? 0.5 : 1;
+        };
+        wrapper.appendChild(btn);
+      }
+    });
+
+    // Создаем групповое отображение для environmental датчиков
+    for (const sensorName in groups) {
+      const groupContainer = document.createElement('div');
+      groupContainer.className = 'chart-group';
+      groupContainer.style.display = 'block';
+      groupContainer.style.marginBottom = '10px';
+      
+      const groupTitle = document.createElement('span');
+      groupTitle.textContent = sensorName;
+      groupTitle.style.fontWeight = 'bold';
+      groupContainer.appendChild(groupTitle);
+      
+      const subContainer = document.createElement('div');
+      subContainer.style.marginLeft = '20px';
+      subContainer.style.display = 'block';
+      groups[sensorName].forEach(item => {
+        const ds = sensorChart.data.datasets[item.index];
+        const btn = document.createElement('button');
+        btn.textContent = item.label;
+        btn.className = 'chart-toggle-btn';
+        btn.style.opacity = ds.hidden ? 0.5 : 1;
+        btn.onclick = () => {
+          const meta = sensorChart.getDatasetMeta(item.index);
+          ds.hidden = !ds.hidden;
+          chartHiddenStates[ds.label] = ds.hidden;
+          meta.hidden = ds.hidden;
+          sensorChart.update();
+          btn.style.opacity = ds.hidden ? 0.5 : 1;
+        };
+        subContainer.appendChild(btn);
+      });
+      groupContainer.appendChild(subContainer);
+      wrapper.appendChild(groupContainer);
+    }
+    
+    controlsContainer.appendChild(wrapper);
+  }
+
+  if (document.getElementById("charts-section").style.display !== "none" && sensorChart) {
+    updateChart();
+  }
+
+  function renderChart() {
+    const datasets = sensors.map(sensor => {
+      let dataPoints = [];
+      if (sensor.history && sensor.history.length) {
+        dataPoints = sensor.history
+          .map(entry => ({ x: new Date(entry.time), y: parseFloat(entry.data) }))
+          .sort((a, b) => a.x - b.x);
+      }
+      return {
+        label: sensor.name || sensor.id,
+        data: dataPoints,
+        fill: false,
+        borderColor: getRandomColor(),
+        tension: 0.1,
+        hidden: false
+      };
+    });
+    const ctx = document.getElementById('sensorChart').getContext('2d');
+    if (sensorChart) {
+      sensorChart.data.datasets = datasets;
+      sensorChart.update();
+    } else {
+      sensorChart = new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: true,
+              onClick: (e, legendItem) => {
+                const index = legendItem.datasetIndex;
+                const meta = sensorChart.getDatasetMeta(index);
+                meta.hidden = meta.hidden === null ? !dataset.hidden : null;
+                sensorChart.update();
+                updateChartControls();
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: 'time',
+              time: { tooltipFormat: 'dd.MM.yyyy HH:mm:ss' },
+              title: { display: true, text: 'Время' }
+            },
+            y: {
+              title: { display: true, text: 'Значение' }
+            }
+          }
+        }
+      });
+    }
+    updateChartControls();
+  }
+
+  function updateChartControls() {
+    const controlsContainer = document.getElementById('chart-controls');
+    controlsContainer.innerHTML = '';
+    sensorChart.data.datasets.forEach((dataset, index) => {
+      const btn = document.createElement('button');
+      btn.textContent = dataset.label;
+      btn.style.marginRight = '5px';
+      btn.onclick = () => {
+        const meta = sensorChart.getDatasetMeta(index);
+        meta.hidden = meta.hidden === null ? !dataset.hidden : null;
+        sensorChart.update();
+        btn.style.opacity = meta.hidden ? 0.5 : 1;
+      };
+      controlsContainer.appendChild(btn);
+    });
+  }
 });

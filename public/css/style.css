@@ -100,7 +100,7 @@ nav ul li a.active {
 main {
   flex: 1 0 auto;
   padding: 2rem 1rem;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   width: 100%;
 }
@@ -370,6 +370,11 @@ input[type=number] {
   border-bottom: 1px solid #2c2c2c;
 }
 
+.dark-mode .login-container {
+  background: rgba(50, 50, 50, 0.9);
+  color: #ddd;
+}
+
 /* Стили для различных типов датчиков */
 .registered-sensor {
   color: #28a745;
@@ -387,13 +392,18 @@ input[type=number] {
 
 /* Chart Controls Styling */
 .chart-controls-wrapper {
+  width: 70%;
   display: flex;
   flex-wrap: wrap;
+  margin: 0 auto;
   gap: 10px;
   margin-top: 1rem;
   padding: 10px;
   background: #f5f5f5;
   border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Added to center buttons */
 }
 
 .chart-control {
@@ -407,6 +417,7 @@ input[type=number] {
   background: white;
   cursor: pointer;
   transition: all 0.2s;
+  margin-right: 10px; /* Added horizontal space between buttons */
 }
 
 .chart-toggle-btn:hover {
@@ -477,5 +488,11 @@ input[type=number] {
   padding: 20px;
   background: #f5f5f5;
   border-radius: 5px;
+}
+
+.chart-group > span {
+  display: block;
+  text-align: center;
+  margin-bottom: 10px;
 }
 

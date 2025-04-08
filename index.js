@@ -23,112 +23,14 @@ const pool = new Pool({
     port: 5432,
 });
 
-let sensors = {};
-let rxInfo = [];
-let gatewayLocation;
 let knownSensorIds = [];
-
-function getRandomCoordinate(base, range) {
-    return base + (Math.random() - 0.5) * range;
-}
-
-function getUnitByType(type) {
-    switch (type) {
-        case 'rain':
-            return 'мм';
-        case 'airQuality':
-            return 'AQI';
-        default:
-            return 'мг/м3';
-    }
-}
 
 async function sensorExists(id) {
     const result = await pool.query('SELECT EXISTS(SELECT 1 FROM sensors WHERE id = $1)', [id]);
     return result.rows[0].exists;
 }
 
-app.post("/data", async (req, res) => {
-    const sensorData = req.body;
-    if (sensorData.data) {
-        sensorData.data = Buffer.from(sensorData.data, 'base64').toString('utf-8');
-    }
-    // Skip if data is null
-    if (!sensorData.data) {
-        return res.sendStatus(200);
-    }
-    const sensorId = sensorData.deviceInfo.devEui;
 
-    // Add ID to known sensors if not exists
-    if (!knownSensorIds.includes(sensorId)) {
-        knownSensorIds.push(sensorId);
-    }
-
-    try {
-        // Check if sensor exists before processing data
-        const exists = await sensorExists(sensorId);
-        if (!exists) {
-            console.log('Датчик не добавлен в систему:', sensorId);
-            return res.sendStatus(200);
-        }
-
-        if (!sensors[sensorId]) {
-            sensors[sensorId] = {
-                deviceInfo: sensorData.deviceInfo,
-                history: [],
-            };
-        }
-        const sensorEntry = {
-            time: sensorData.time,
-            data: sensorData.data
-        };
-        sensors[sensorId].history.push(sensorEntry);
-        rxInfo = sensorData.rxInfo || [];
-        if (rxInfo.length > 0) {
-            gatewayLocation = {
-                lat: rxInfo[0].location.latitude,
-                lng: rxInfo[0].location.longitude
-            };
-            if (!sensors[sensorId].lat || !sensors[sensorId].lng) {
-                sensors[sensorId].lat = getRandomCoordinate(gatewayLocation.lat, 0.01);
-                sensors[sensorId].lng = getRandomCoordinate(gatewayLocation.lng, 0.01);
-            }
-        }
-        console.log('Данные датчиков обновлены!');
-
-        try {
-            // Skip database insert if data is null
-            if (sensorData.data !== null && sensorData.data !== undefined) {
-                await pool.query(`
-                    INSERT INTO sensors (id, data)
-                    VALUES ($1, $2)
-                    ON CONFLICT (id) DO UPDATE SET
-                        data = EXCLUDED.data
-                `, [
-                    sensorId,
-                    sensorData.data,
-                ]);
-
-                await pool.query(`
-                    INSERT INTO sensor_history (sensor_id, time, data)
-                    VALUES ($1, $2, $3)
-                `, [
-                    sensorId,
-                    sensorEntry.time,
-                    sensorEntry.data
-                ]);
-            }
-
-            res.sendStatus(200);
-        } catch (error) {
-            console.error('Ошибка сохранения данных в базу данных:', error);
-            res.sendStatus(500);
-        }
-    } catch (error) {
-        console.error('Ошибка проверки существования датчика:', error);
-        res.sendStatus(500);
-    }
-});
 
 app.post("/api/verify-code", (req, res) => {
     const { code } = req.body;
@@ -142,8 +44,20 @@ app.post("/api/verify-code", (req, res) => {
 
 app.get("/api/sensors", async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM sensors');
-        const historyResult = await pool.query('SELECT * FROM sensor_history');
+        const result = await pool.query('SELECT id, type, name, lat, lng FROM sensors');
+        
+        const latestDataQuery = `
+            SELECT DISTINCT ON (sensor_id) 
+                sensor_id, 
+                data, 
+                time 
+            FROM sensor_history 
+            ORDER BY sensor_id, time DESC
+        `;
+        const latestData = await pool.query(latestDataQuery);
+        
+        const historyResult = await pool.query('SELECT sensor_id, time, data FROM sensor_history');
+        
         const historyMap = historyResult.rows.reduce((acc, row) => {
             if (!acc[row.sensor_id]) {
                 acc[row.sensor_id] = [];
@@ -151,16 +65,25 @@ app.get("/api/sensors", async (req, res) => {
             acc[row.sensor_id].push({ time: row.time, data: row.data });
             return acc;
         }, {});
-        const sen = result.rows.map(row => ({
+
+        const latestDataMap = latestData.rows.reduce((acc, row) => {
+            acc[row.sensor_id] = row;
+            return acc;
+        }, {});
+
+        const sensors = result.rows.map(row => ({
             id: row.id,
             type: row.type,
             name: row.name,
             lat: row.lat,
             lng: row.lng,
-            data: { value: row.data, unit: row.unit },
+            data: latestDataMap[row.id] ? {
+                value: latestDataMap[row.id].data
+            } : null,
             history: historyMap[row.id] || []
         }));
-        res.json({ sensors: sen, rxInfo: rxInfo });
+
+        res.json({ sensors });
     } catch (error) {
         console.error('Ошибка получения данных из базы данных:', error);
         res.sendStatus(500);
@@ -191,7 +114,6 @@ app.get("/api/sensor/:id", async (req, res) => {
     }
 });
 
-// Add role check middleware
 function checkAdminRole(req, res, next) {
     const role = req.headers['user-role'];
     if (role !== 'admin') {
@@ -200,7 +122,6 @@ function checkAdminRole(req, res, next) {
     next();
 }
 
-// Add role check to sensor management endpoints
 app.post("/api/sensor/:id", checkAdminRole, async (req, res) => {
     try {
         const { type, name, lat, lng } = req.body;
@@ -216,14 +137,13 @@ app.post("/api/sensor/:id", checkAdminRole, async (req, res) => {
     }
 });
 
-// Add role check to sensor management endpoints
 app.post("/api/sensor", checkAdminRole, async (req, res) => {
     try {
         const { id, type, name, lat, lng } = req.body;
         await pool.query(`
-            INSERT INTO sensors (id, type, name, lat, lng, unit)
-            VALUES ($1, $2, $3, $4, $5, $6)
-        `, [id, type, name, lat, lng, getUnitByType(type)]);
+            INSERT INTO sensors (id, type, name, lat, lng)
+            VALUES ($1, $2, $3, $4, $5)
+        `, [id, type, name, lat, lng]);
         res.sendStatus(200);
     } catch (error) {
         console.error('Ошибка добавления датчика:', error);
@@ -249,7 +169,7 @@ async function clearTables() {
     }
 }
 
-let mqttClient; // Объявляем переменную в глобальной области
+let mqttClient;
 
 function startServer() {
     rl.question('Хотите очистить таблицы перед запуском? (y/n): ', async (answer) => {
@@ -257,8 +177,7 @@ function startServer() {
             await clearTables();
         }
         
-        // Инициализируем MQTT после ответа на вопрос
-        mqttClient = mqtt.connect('mqtt://192.168.137.10');
+        mqttClient = mqtt.connect('mqtt://192.168.1.202');
 
         mqttClient.on('connect', () => {
             console.log('Подключено к MQTT брокеру');
@@ -272,48 +191,19 @@ function startServer() {
         });
 
         mqttClient.on('message', async (topic, message) => {
-            if (topic === 'mqtt/sensorData') {
-                try {
-                    const data = JSON.parse(message.toString());
-                    console.log('Получены данные с датчика:', data);
+            if (topic !== 'mqtt/sensorData') return;
 
-                    // Add ID to known sensors if not exists
-                    if (data.id && !knownSensorIds.includes(data.id)) {
-                        knownSensorIds.push(data.id);
-                    }
+            try {
+                const data = JSON.parse(message.toString());
+                console.log('Получены данные с датчика:', data);
 
-                    // Skip if value is null or sensor doesn't exist
-                    if (data.value === null || data.value === undefined) {
-                        return;
-                    }
-
-                    const exists = await sensorExists(data.id);
-                    if (!exists) {
-                        console.log('MQTT датчик не добавлен в систему:', data.id);
-                        return;
-                    }
-
-                    await pool.query(`
-                        UPDATE sensors 
-                        SET data = $1
-                        WHERE id = $2
-                    `, [
-                        data.value.toString(),
-                        data.id
-                    ]);
-
-                    await pool.query(`
-                        INSERT INTO sensor_history (sensor_id, time, data)
-                        VALUES ($1, $2, $3)
-                    `, [
-                        data.id,
-                        new Date().toISOString(),
-                        data.value.toString()
-                    ]);
-
-                } catch (error) {
-                    console.error('Ошибка обработки MQTT сообщения:', error);
+                if (data.id && !knownSensorIds.includes(data.id)) {
+                    knownSensorIds.push(data.id);
                 }
+
+                await handleSensorData(data);
+            } catch (error) {
+                console.error('Ошибка обработки MQTT сообщения:', error);
             }
         });
 
@@ -322,6 +212,35 @@ function startServer() {
         });
         
         rl.close();
+    });
+}
+
+async function handleSensorData(data) {
+    if (!data.id || !await sensorExists(data.id)) {
+        return;
+    }
+
+    const typeResult = await pool.query('SELECT type FROM sensors WHERE id = $1', [data.id]);
+    const sensorType = typeResult.rows[0]?.type;
+    
+    const sensorData = sensorType === 'environmental' 
+        ? parseEnvironmentalData(data.value)
+        : data.value.toString();
+
+    await pool.query(
+        'INSERT INTO sensor_history (sensor_id, time, data) VALUES ($1, $2, $3)', 
+        [data.id, new Date().toUTCString(), sensorData]
+    );
+}
+
+function parseEnvironmentalData(value) {
+    const [, pm25, pm10, temp, humidity, pressure] = value.split(',');
+    return JSON.stringify({
+        pm25: parseFloat(pm25),
+        pm10: parseFloat(pm10),
+        temperature: parseFloat(temp),
+        humidity: parseFloat(humidity),
+        pressure: parseFloat(pressure)
     });
 }
 

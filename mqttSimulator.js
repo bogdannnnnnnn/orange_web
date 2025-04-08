@@ -1,62 +1,35 @@
 const mqtt = require('mqtt');
 
-const brokerUrl = 'mqtt://192.168.137.10';
+const brokerUrl = 'mqtt://192.168.1.202';
 const client = mqtt.connect(brokerUrl);
 
-function generateRandomId() {
-    return Array.from({length: 16}, () => 
-        Math.floor(Math.random() * 16).toString(16)
-    ).join('');
-}
+const generateRandomId = () => Array.from({length: 16}, () => 
+  Math.floor(Math.random() * 16).toString(16)
+).join('');
 
-// Create IDs for three different sensors
-const sensorIds = {
-    airQuality: generateRandomId(),
-    dust: generateRandomId(),
-    rain: generateRandomId()
+const sensorConfigs = {
+  airQuality: { id: generateRandomId(), min: 30, max: 40, interval: 10000 },
+  dust: { id: generateRandomId(), min: 50, max: 150, interval: 12000 },
+  rain: { id: generateRandomId(), min: 0, max: 25, interval: 15000 }
 };
 
-console.log('Connecting to Mossad servers:', brokerUrl);
+console.log('Connecting to broker:', brokerUrl);
+console.log('Using sensor IDs:', sensorConfigs);
+
 client.on('connect', () => {
-    console.log('Successfully connected to the MQTT broker');
-    console.log('Using sensor IDs:', sensorIds);
+  console.log('Successfully connected to the MQTT broker');
+  const topic = 'mqtt/sensorData';
 
-    const topic = 'mqtt/sensorData';
-
-    // Air Quality Sensor (30-40 AQI)
+  Object.entries(sensorConfigs).forEach(([type, config]) => {
     setInterval(() => {
-        const airQuality = Math.floor(Math.random() * 11) + 30;
-        const message = JSON.stringify({ 
-            id: sensorIds.airQuality,
-            value: airQuality 
-        });
-        client.publish(topic, message);
-        console.log(`AirQuality message sent: ${message}`);
-    }, 10000);
-
-    // Dust Sensor (50-150 мг/м3)
-    setInterval(() => {
-        const dustLevel = Math.floor(Math.random() * 101) + 50;
-        const message = JSON.stringify({ 
-            id: sensorIds.dust,
-            value: dustLevel
-        });
-        client.publish(topic, message);
-        console.log(`Dust message sent: ${message}`);
-    }, 12000);
-
-    // Rain Sensor (0-25 мм)
-    setInterval(() => {
-        const rainfall = Math.floor(Math.random() * 26);
-        const message = JSON.stringify({ 
-            id: sensorIds.rain,
-            value: rainfall
-        });
-        client.publish(topic, message);
-        console.log(`Rain message sent: ${message}`);
-    }, 15000);
+      const value = Math.floor(Math.random() * (config.max - config.min + 1)) + config.min;
+      const message = JSON.stringify({ id: config.id, value });
+      client.publish(topic, message);
+      console.log(`${type} message sent:`, message);
+    }, config.interval);
+  });
 });
 
 client.on('error', (err) => {
-    console.error('MQTT client error:', err);
+  console.error('MQTT client error:', err);
 });

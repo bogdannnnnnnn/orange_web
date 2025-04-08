@@ -59,6 +59,7 @@
           <label><input type="checkbox" class="filter" value="airQuality" checked> Качество воздуха</label>
           <label><input type="checkbox" class="filter" value="rain" checked> Дождь</label>
           <label><input type="checkbox" class="filter" value="dust" checked> Количество пыли</label>
+          <label><input type="checkbox" class="filter" value="environmental" checked> Окружающая среда</label>
         </div>
       </section>
       <!-- Раздел для таблиц с данными -->
@@ -68,6 +69,7 @@
             <li><a href="#" id="tab-airQuality" class="active" data-type="airQuality">Качество воздуха</a></li>
             <li><a href="#" id="tab-rain" data-type="rain">Дождь</a></li>
             <li><a href="#" id="tab-dust" data-type="dust">Количество пыли</a></li>
+            <li><a href="#" id="tab-environmental" data-type="environmental">Окружающая среда</a></li>
           </ul>
         </div>
         <div id="tables-container">
@@ -128,6 +130,29 @@
               </tbody>
             </table>
           </div>
+          <!-- Таблица для датчиков окружающей среды -->
+          <div class="table-tab" id="content-environmental" style="display:none;">
+            <button class="download-btn" data-type="environmental">Скачать CSV</button>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Название</th>
+                  <th>Широта</th>
+                  <th>Долгота</th>
+                  <th>Время</th>
+                  <th>PM2.5<br>мкг/м³</th>
+                  <th>PM10<br>мкг/м³</th>
+                  <th>Температура<br>°C</th>
+                  <th>Влажность<br>%</th>
+                  <th>Давление<br>mmHg</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Данные для окружающей среды -->
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
       <!-- Раздел для добавления датчика -->
@@ -143,6 +168,7 @@
             <option value="airQuality">Качество воздуха</option>
             <option value="rain">Дождь</option>
             <option value="dust">Количество пыли</option>
+            <option value="environmental">Окружающая среда</option>
           </select>
           <input type="number" id="sensor-lat" placeholder="Широта" step="any" required>
           <input type="number" id="sensor-lng" placeholder="Долгота" step="any" required>
@@ -150,7 +176,7 @@
         </form>
         <p id="new-sensor-error" class="error"></p>
       </section>
-      <!-- Раздел для графиков -->
+      <!-- Раздел для графиков -->  
       <section id="charts-section" style="display: none;">
         <h2>Графики данных</h2>
          <canvas id="sensorChart"></canvas>
