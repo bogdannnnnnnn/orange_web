@@ -116,8 +116,7 @@ orange_web/
 ├── install.sh            # автоустановка (Armbian)
 ├── docker-compose.yml    # альтернативный запуск в контейнерах
 ├── public/               # фронтенд (HTML + CSS + JS)
-├── config/               # *.json и примеры конфигов
-└── docs/                 # схемы, баннеры, РПЗ
+└── config/               # *.json и примеры конфигов
 ```
 
 ---

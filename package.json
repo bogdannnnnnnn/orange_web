@@ -6,7 +6,7 @@
   "scripts": {
     "start_server": "node index.js",
     "mqtt": "node mqttSimulator.js",
-    "db_init": "node dbInit.js"
+    "db_init": "node init_db.js"
   },
   "author": "",
   "license": "ISC",
