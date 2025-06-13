@@ -2,7 +2,6 @@ const express = require('express');
 const path = require('path');
 const { Pool } = require('pg');
 const mqtt = require('mqtt');
-const readline = require('readline');
 const fs = require('fs');
 const app = express();
 
@@ -158,11 +157,6 @@ app.get("/api/available-sensor-ids", (req, res) => {
     res.json(knownSensorIds);
 });
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
 async function clearTables() {
     try {
         await pool.query('TRUNCATE sensors, sensor_history');
@@ -173,14 +167,15 @@ async function clearTables() {
 }
 
 let mqttClient;
+const shouldClearTables = process.argv.includes('--clear') ||
+    process.env.CLEAR_TABLES === 'true';
 
-function startServer() {
-    rl.question('Хотите очистить таблицы перед запуском? (y/n): ', async (answer) => {
-        if (answer.toLowerCase() === 'y') {
-            await clearTables();
-        }
-        
-        mqttClient = mqtt.connect(`mqtt://${ip}:1883`);
+async function startServer() {
+    if (shouldClearTables) {
+        await clearTables();
+    }
+
+    mqttClient = mqtt.connect(`mqtt://${ip}:1883`);
 
         mqttClient.on('connect', () => {
             console.log('Подключено к MQTT брокеру');
@@ -210,11 +205,8 @@ function startServer() {
             }
         });
 
-        app.listen(PORT, () => {
-            console.log(`Сервер запущен на порту ${PORT}`);
-        });
-        
-        rl.close();
+    app.listen(PORT, () => {
+        console.log(`Сервер запущен на порту ${PORT}`);
     });
 }
 
@@ -250,7 +242,6 @@ function parseEnvironmentalData(value) {
 startServer();
 
 process.on('SIGINT', () => {
-    rl.close();
     mqttClient.end();
     pool.end();
     process.exit();

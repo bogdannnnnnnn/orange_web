@@ -54,6 +54,8 @@ npm run db:init                  # создаст БД, таблицы, расш
 
 # 9. Запуск
 npm run start:prod               # или: node index.js
+# при необходимости очистить таблицы перед стартом:
+# CLEAR_TABLES=true node index.js  # либо: node index.js --clear
 ```
 
 Через пару секунд фронтенд будет доступен на `http://<IP‑платы>:4000`  (порт задаётся переменной `PORT`).
