@@ -1,0 +1,6 @@
+{
+    "codes": [
+        {"code": "ADMIN-CODE-123", "role": "admin"},
+        {"code": "USER-CODE-456", "role": "user"}
+    ]
+}

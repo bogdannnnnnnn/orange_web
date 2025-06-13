@@ -85,7 +85,9 @@ sudo docker compose up -d        # создаст web, db, mqtt
 | Файл | Назначение |
 |------|------------|
 | **.env** | Единая точка настройки: `DATABASE_URL`, `MQTT_URL`, `PORT`, `YANDEX_MAPS_APIKEY`, `ACCESS_CODES_PATH` |
+| **.env.example** | Пример значений для переменных окружения |
 | **config/access-codes.json** | Одноразовые коды авторизации. Добавляйте новые, задавая `role = admin / user`. |
+| **config/access-codes.json.example** | Пример файла кодов авторизации |
 | **config/mosquitto.conf** | Пример безопасной (password‑file) конфигурации брокера. |
 
 **Совет для продакшна:** отключите `allow_anonymous true` в Mosquitto и включите TLS.
